@@ -7,6 +7,15 @@ plm -- generate matched RTL and testbench outputs from three configuration CSVs.
     plm --version                         print the installed version
     plm -gui                              launch the Qt front end
 
+Run from the plm repository (Python 3.12 recommended):
+    uv run plm --help
+    uv run plm generate --help
+    uv run plm validate --help
+    uv run plm validate --config dpr
+    uv run plm generate --config dpr --dpr
+    uv run --extra qt plm-gui
+    uv run --extra qt plm-gui --help
+
 RTL and testbench are one output set. Generation stages both and replaces
 SET/rtl and SET/tb only after every step succeeds.
 """
@@ -98,6 +107,12 @@ def cmd_generate(argv):
     parser = argparse.ArgumentParser(
         prog="plm generate",
         description="Generate matched PIPE lane mapper RTL and testbench outputs",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Run from the plm repository:\n"
+            "  uv run plm generate --config dpr --dpr\n"
+            "  uv run plm generate --config bifurcate --module-prefix demo --file-prefix gen"
+        ),
     )
     _add_config_arg(parser)
     _add_generation_args(parser)
@@ -143,6 +158,8 @@ def cmd_validate(argv):
     parser = argparse.ArgumentParser(
         prog="plm validate",
         description="Parse and validate a PIPE lane mapper config set",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="Run from the plm repository:\n  uv run plm validate --config dpr",
     )
     _add_config_arg(parser)
     args = parser.parse_args(argv)

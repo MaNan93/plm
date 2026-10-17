@@ -6,27 +6,44 @@ Run: python run.py -gui
 (or, once installed: plm -gui)
 """
 
+import argparse
 import sys
-
-try:
-    from PyQt5 import QtCore, QtGui, QtWidgets
-except ImportError:
-    sys.exit(
-        "plm -gui needs PyQt5. Install it with:\n"
-        '    pip install "plm[qt]"\n'
-        "(or, offline, transfer the PyQt5/PyQt5-sip wheels to this machine and pip install those)."
-    )
-
-from plm.frontend.qt.main_window import MainWindow
-from plm.frontend.qt.widgets.common import APP_ICON_PATH
 
 
 def main(argv=None):
+    argv = sys.argv[1:] if argv is None else list(argv)
+    parser = argparse.ArgumentParser(
+        prog='plm-gui',
+        description='Qt editor and generator for PIPE Lane Mapper workspaces.',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        allow_abbrev=False,
+        epilog=(
+            'Run from the plm repository (Python 3.12 recommended):\n'
+            '  uv run --extra qt plm-gui\n'
+            '  uv run --extra qt plm-gui --help\n'
+            '  uv run --extra qt python run.py -gui\n'
+            'Command-line generation: uv run plm generate --help'
+        ),
+    )
+    # Keep Qt-specific arguments intact; help exits before importing Qt.
+    parser.parse_known_args(argv)
+
+    try:
+        from PyQt5 import QtCore, QtGui, QtWidgets
+    except ImportError:
+        sys.exit(
+            "plm -gui needs PyQt5. Install it with:\n"
+            '    pip install "plm[qt]"\n'
+            "(or, offline, transfer the PyQt5/PyQt5-sip wheels to this machine and pip install those)."
+        )
+
+    from plm.frontend.qt.main_window import MainWindow
+    from plm.frontend.qt.widgets.common import APP_ICON_PATH
+
     if hasattr(QtCore.Qt, "AA_EnableHighDpiScaling"):
         QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
     if hasattr(QtCore.Qt, "AA_UseHighDpiPixmaps"):
         QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps, True)
-    argv = sys.argv[1:] if argv is None else list(argv)
     app = QtWidgets.QApplication([sys.argv[0], *argv])
     app.setApplicationName("plmConsultant")
     if APP_ICON_PATH.is_file():
