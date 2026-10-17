@@ -1,0 +1,115 @@
+name: PLM regression
+
+on:
+  push:
+    paths:
+      - "**"
+      - ".github/workflows/plm.yml"
+      - ".gitattributes"
+  pull_request:
+    paths:
+      - "**"
+      - ".github/workflows/plm.yml"
+      - ".gitattributes"
+  workflow_dispatch:
+
+concurrency:
+  group: plm-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # During the plm-ui-refactor functional-restoration phase, keep the full
+  # cross-platform matrix for final/manual validation instead of every small
+  # UI logic change. A separate fast functional workflow covers this branch.
+  test:
+    if: github.ref != 'refs/heads/plm-ui-refactor'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.9", "3.12"]
+        include:
+          - os: macos-latest
+            python: "3.12"
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: .
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: ${{ matrix.python }}
+          working-directory: .
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgl1 libegl1 fonts-noto-cjk fonts-roboto fonts-dejavu-core
+      - run: uv sync --extra qt --locked
+      - run: uv run python -m compileall -q src run.py tests
+      - name: Check layout and animation event boundaries
+        env:
+          PYTHONPATH: tests
+        run: >-
+          uv run python -m unittest -v
+          test_qt_redesign.RedesignTests.test_generation_cards_align_under_a_host_style_that_centers_forms
+          test_qt_redesign.RedesignTests.test_log_animation_has_intermediate_frames_and_can_reverse_twice
+          test_qt_regressions.QtRegressionTests.test_single_click_paints_only_after_release_and_double_click_window
+          test_qt_toast.ToastTests.test_toast_replacement_resets_timer_and_does_not_take_focus
+      - run: uv run python -m unittest discover -s tests -v
+      - name: Check both themes at four display scales
+        if: matrix.python == '3.12'
+        run: uv run python scripts/check_ui_scaling.py --output build/ui-scaling/report.json --screenshots build/ui-scaling/screenshots
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.python == '3.12'
+        with:
+          name: plm-ui-scaling-${{ matrix.os }}
+          path: build/ui-scaling/
+
+  rtl-sim:
+    if: github.ref != 'refs/heads/plm-ui-refactor'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    env:
+      PLM_RUN_RTL_SIM: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+          working-directory: .
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: sudo apt-get update && sudo apt-get install -y verilator
+      - run: uv sync --locked
+      - run: uv run python -m unittest discover -s tests -p test_dpr_phy_input.py -v
+      - run: uv run python -m unittest discover -s tests -p test_perst_reset.py -v
+
+  wheel:
+    if: github.ref != 'refs/heads/plm-ui-refactor'
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: .
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+          working-directory: .
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgl1 libegl1
+      - run: uv sync --extra qt --locked
+      - run: uv build --wheel
+      - run: uv run python scripts/check_wheel.py
