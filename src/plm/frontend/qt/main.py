@@ -19,9 +19,9 @@ def main(argv=None):
         allow_abbrev=False,
         epilog=(
             'Run from the plm repository (Python 3.12 recommended):\n'
-            '  uv run --extra qt plm-gui\n'
-            '  uv run --extra qt plm-gui --help\n'
-            '  uv run --extra qt python run.py -gui\n'
+            '  uv run plm-gui\n'
+            '  uv run plm-gui --help\n'
+            '  uv run python run.py -gui\n'
             'Command-line generation: uv run plm generate --help'
         ),
     )

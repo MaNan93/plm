@@ -7,6 +7,18 @@
 
 ## 3.0.5（2026-10-17 更新）
 
+### 2026-10-17：统一 uv 源码运行方式（环境配置更新）
+
+- 增加 `.python-version`，源码环境默认使用 Python 3.12；更新锁文件。
+- 默认 uv 依赖组 `gui` 安装 PyQt5，源码目录可直接执行 `uv run plm-gui`，
+  CLI 使用 `uv run plm ...`。无需 `--extra qt`；已安装 wheel 的 Qt 依赖仍为可选项。
+- CLI 专用源码环境可使用 `uv sync --locked --no-default-groups` 和
+  `uv run --no-default-groups plm ...`；同步帮助、README 与开发环境说明。
+
+验证：九个项目的统一命令、解释器版本与锁文件检查通过，PLM 默认 Qt 依赖可导入；
+PLM 打包与格式化/预览专项 27 项通过。全新 wheel/源码包构建、隔离安装后的
+CLI/GUI 帮助及 Qt 可选依赖元数据检查通过。本轮未发布新安装包。
+
 ### 2026-10-17：命令行帮助补充启动示例（源码更新）
 
 - `plm --help`、`generate --help`、`validate --help` 补充从源码仓库执行的

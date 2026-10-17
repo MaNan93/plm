@@ -24,13 +24,19 @@ Usage and editor documentation are included in the installed package.
 The Qt window opens at 1280 × 800. Configuration tables share light grid lines;
 the Artifacts viewer uses a GitHub-inspired light palette with Lucide file icons.
 
-From the `plm/` source directory:
+From the `plm/` source directory, `.python-version` selects Python 3.12.
+The default uv dependency group installs Qt, so the editor launches directly.
+The installed wheel still keeps Qt optional (`plm[qt]`). For a CLI-only source
+environment, use `uv sync --locked --no-default-groups` and
+`uv run --no-default-groups plm --help`.
+
+Run from the source directory:
 
 ```sh
-uv sync --extra qt --locked
+uv sync --locked
 uv run plm validate --config dpr
 uv run plm generate --config dpr --dpr
-uv run python run.py -gui
+uv run plm-gui
 ```
 
 Run regression checks with `uv run python -m unittest discover -s tests -v`.

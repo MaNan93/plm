@@ -13,11 +13,15 @@ dependencies = []
 [project.optional-dependencies]
 qt = ["PyQt5>=5.15"]
 
+[dependency-groups]
+gui = ["PyQt5>=5.15"]
+
 [project.scripts]
 plm = "plm.cli.main:main"
 plm-gui = "plm.frontend.qt.main:main"
 
 [tool.uv]
+default-groups = ["gui"]
 required-environments = [
     "sys_platform == 'linux' and platform_machine == 'x86_64'",
     "sys_platform == 'win32' and platform_machine == 'AMD64'",

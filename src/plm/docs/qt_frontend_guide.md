@@ -7,8 +7,8 @@ Qt 前端编辑真实项目配置，并直接调用共享 PLM 核心生成 RTL �
 在仓库的 `plm/` 目录执行：
 
 ```bash
-uv sync --extra qt --locked
-uv run python run.py -gui
+uv sync --locked
+uv run plm-gui
 ```
 
 安装包含 Qt 依赖的发行包后，也可以使用 `plm-gui` 或 `plm -gui`。

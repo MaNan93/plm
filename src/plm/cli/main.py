@@ -13,8 +13,8 @@ Run from the plm repository (Python 3.12 recommended):
     uv run plm validate --help
     uv run plm validate --config dpr
     uv run plm generate --config dpr --dpr
-    uv run --extra qt plm-gui
-    uv run --extra qt plm-gui --help
+    uv run plm-gui
+    uv run plm-gui --help
 
 RTL and testbench are one output set. Generation stages both and replaces
 SET/rtl and SET/tb only after every step succeeds.

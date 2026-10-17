@@ -7,10 +7,10 @@
 再校验并生成自带的 DPR 示例：
 
 ```bash
-uv sync --extra qt --locked
+uv sync --locked
 uv run plm validate --config dpr
 uv run plm generate --config dpr --dpr
-uv run python run.py -gui     # Qt 桌面前端
+uv run plm-gui     # Qt 桌面前端
 ```
 
 `uv sync` 创建本项目的环境并安装 CLI 入口。源码环境使用 `uv run plm ...`，
@@ -229,7 +229,7 @@ plm/
 │     │  ├─ qt_frontend_guide.md Qt 前端操作说明
 │     │  └─ release_note.md     版本记录与迁移方法
 │     └─ frontend/
-│        └─ qt/                 桌面前端（PyQt5，`uv sync --extra qt --locked`）
+│        └─ qt/                 桌面前端（PyQt5，`uv sync --locked`）
 ├─ examples/
 │  └─ <SET>/              一套配置集，SET 是自己起的名字（如 bifurcate）
 │     ├─ config/           输入：三个 CSV（见第 2 节）
