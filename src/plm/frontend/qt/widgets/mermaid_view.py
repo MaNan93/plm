@@ -43,6 +43,7 @@ class MermaidView(QtWidgets.QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         controls = QtWidgets.QHBoxLayout()
         for title, script in (("−", "zoomTopology(0.8)"), ("+", "zoomTopology(1.25)"),
+                              ("100%", "resetTopology()"),
                               ("适应窗口", "fitTopology()")):
             button = QtWidgets.QPushButton(title)
             button.clicked.connect(lambda checked=False, code=script: self._run(code))
@@ -118,6 +119,9 @@ class MermaidView(QtWidgets.QWidget):
             self._render()
 
     def _render(self):
+        # ELK schedules layout work asynchronously. Keep the browser visible
+        # while it works so Chromium does not throttle its background timers.
+        self.stack.setCurrentWidget(self.web)
         self._run(f"renderTopology({json.dumps(self._source)}, {self._revision})")
 
     def _render_result(self, revision, error):
@@ -126,7 +130,6 @@ class MermaidView(QtWidgets.QWidget):
         self.message.setText(error)
         self.stack.setCurrentWidget(self.message if error else self.web)
         if not error:
-            # The WebEngine child was hidden during rendering; fit once more
-            # after Qt gives it the visible viewport's actual dimensions.
-            QtCore.QTimer.singleShot(0, lambda: self._run("fitTopology()"))
+            # Reframe after Qt gives the browser its visible viewport size.
+            QtCore.QTimer.singleShot(0, lambda: self._run("readTopology()"))
         self.renderFinished.emit(not bool(error), error)

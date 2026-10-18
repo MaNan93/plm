@@ -18,6 +18,85 @@
   const canvas = document.getElementById('canvas');
   const report = (version, error) => console.info('PLM_TOPOLOGY:' + JSON.stringify({version, error}));
 
+  function clarifyConnections(svg) {
+    const ns = 'http://www.w3.org/2000/svg';
+    // ELK positions edge text, but does not draw its background in Mermaid 10.
+    for (const label of svg.querySelectorAll('.edgeLabel')) {
+      const box = label.getBBox();
+      if (!box.width || !box.height) continue;
+      const background = document.createElementNS(ns, 'rect');
+      const attributes = {x: box.x - 4, y: box.y - 2, width: box.width + 8,
+        height: box.height + 4, rx: 3, fill: '#FFFFFF', opacity: '0.96',
+        class: 'topology-label-background'};
+      for (const [name, value] of Object.entries(attributes)) background.setAttribute(name, value);
+      background.style.fill = '#FFFFFF';
+      background.style.opacity = '0.96';
+      background.style.stroke = '#E2E8F0';
+      background.style.strokeWidth = '0.5px';
+      label.prepend(background);
+    }
+    const inverse = svg.getCTM().inverse();
+    const boxes = new Map();
+    for (const rect of svg.querySelectorAll('.node > rect.label-container')) {
+      const bounds = rect.getBBox(), matrix = inverse.multiply(rect.getCTM());
+      boxes.set(rect.parentNode.getAttribute('data-id'), {
+        left: bounds.x + matrix.e, right: bounds.x + matrix.e + bounds.width,
+        top: bounds.y + matrix.f, bottom: bounds.y + matrix.f + bounds.height
+      });
+    }
+    const ports = document.createElementNS(ns, 'g');
+    ports.setAttribute('class', 'topology-ports');
+    ports.style.pointerEvents = 'none';
+    for (const path of svg.querySelectorAll('.flowchart-link')) {
+      const style = getComputedStyle(path), matrix = inverse.multiply(path.getCTM());
+      for (const prefix of ['LS-', 'LE-']) {
+        const endpoint = Array.from(path.classList).find(name => name.startsWith(prefix));
+        const box = endpoint && boxes.get(endpoint.slice(3));
+        if (!box) continue;
+        const point = path.getPointAtLength(prefix === 'LS-' ? 0 : path.getTotalLength()).matrixTransform(matrix);
+        const port = document.createElementNS(ns, 'circle');
+        port.setAttribute('class', 'topology-port');
+        port.setAttribute('data-node', endpoint.slice(3));
+        // The path ends before the arrowhead; project that point onto the box.
+        port.setAttribute('cx', Math.max(box.left, Math.min(box.right, point.x)));
+        port.setAttribute('cy', Math.max(box.top, Math.min(box.bottom, point.y)));
+        port.setAttribute('r', 2.5);
+        port.setAttribute('fill', style.stroke);
+        port.setAttribute('opacity', style.opacity);
+        ports.appendChild(port);
+      }
+    }
+    svg.appendChild(ports);
+  }
+
+  function colorRouteMarkers(svg) {
+    // Mermaid 10 shares a dark arrowhead across differently styled edges.
+    // Clone it for highlighted edges so arrowheads match their line color.
+    let defs = svg.querySelector('defs');
+    if (!defs) {
+      defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      svg.prepend(defs);
+    }
+    let index = 0;
+    for (const path of svg.querySelectorAll('path[marker-end], path[marker-start]')) {
+      const stroke = getComputedStyle(path).stroke;
+      if (!stroke || stroke === 'none') continue;
+      for (const attribute of ['marker-end', 'marker-start']) {
+        const match = /#([^)'"\s]+)/.exec(path.getAttribute(attribute) || '');
+        const original = match && svg.querySelector('[id="' + match[1] + '"]');
+        if (!original) continue;
+        const marker = original.cloneNode(true);
+        marker.id = original.id + '_route_' + index++;
+        for (const shape of marker.querySelectorAll('path, polygon, circle')) {
+          shape.style.fill = stroke;
+          shape.style.stroke = stroke;
+        }
+        defs.appendChild(marker);
+        path.setAttribute(attribute, 'url(#' + marker.id + ')');
+      }
+    }
+  }
+
   function resizeGraph() {
     const svg = canvas.querySelector('svg');
     if (svg) {
@@ -37,6 +116,17 @@
     scale = Math.max(0.01, Math.min(8, scale * factor));
     resizeGraph();
   };
+  window.readTopology = function () {
+    window.fitTopology();
+    // Dense clock diagrams should open at a readable size; scroll to explore.
+    scale = Math.max(0.75, scale);
+    resizeGraph();
+  };
+  window.resetTopology = function () {
+    scale = 1;
+    resizeGraph();
+    viewport.scrollLeft = viewport.scrollTop = 0;
+  };
   window.invalidateTopology = function (version) {
     revision = version;
     canvas.textContent = '';
@@ -53,15 +143,17 @@
           startOnLoad: false, securityLevel: 'strict', theme: 'default',
           fontFamily: 'Arial, Microsoft YaHei, sans-serif',
           maxTextSize: 1000000, maxEdges: 10000,
-          flowchart: { htmlLabels: false, useMaxWidth: false }
+          flowchart: { htmlLabels: false, useMaxWidth: false, defaultRenderer: 'elk' }
         });
         const result = await mermaid.render('topology_' + version, source);
         if (revision !== version) return;
         canvas.innerHTML = result.svg;
         const svg = canvas.querySelector('svg');
+        colorRouteMarkers(svg);
+        clarifyConnections(svg);
         svgWidth = svg.viewBox.baseVal.width;
         svgHeight = svg.viewBox.baseVal.height;
-        window.fitTopology();
+        window.readTopology();
         report(version, '');
       } catch (error) {
         if (revision !== version) return;

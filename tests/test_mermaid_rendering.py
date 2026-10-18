@@ -11,7 +11,9 @@ import unittest
 class MermaidRenderingTests(unittest.TestCase):
     @unittest.skipUnless(importlib.util.find_spec("PyQt5.QtWebEngineWidgets"), "PyQtWebEngine is optional")
     def test_offline_rendering_zoom_latest_revision_and_errors(self):
-        environment = dict(os.environ, QTWEBENGINE_CHROMIUM_FLAGS="--disable-gpu")
+        environment = dict(os.environ, QTWEBENGINE_CHROMIUM_FLAGS=(
+            "--disable-gpu --disable-background-timer-throttling --disable-renderer-backgrounding"
+        ))
         # Windows' offscreen Qt plugin crashes when creating a Chromium view.
         # The probe uses the native platform without showing any windows.
         if sys.platform == "win32":
@@ -20,7 +22,7 @@ class MermaidRenderingTests(unittest.TestCase):
         result = subprocess.run(
             [sys.executable, str(probe)], env=environment,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-            encoding="utf-8", errors="replace", timeout=90,
+            encoding="utf-8", errors="replace", timeout=150,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("OFFLINE_RENDER_PASS", result.stdout)

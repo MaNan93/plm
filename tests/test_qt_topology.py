@@ -11,6 +11,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 from PyQt5 import QtCore, QtTest, QtWidgets
 
 from plm.core.workspace import scaffold_default_content
+from plm.core.topology import topology_mode_color
 from plm.frontend.qt.views.config_page import ConfigPage
 from plm.frontend.qt.views.topology_dialog import TopologyDialog
 from qt_test_support import (
@@ -53,6 +54,16 @@ class TopologyGuiTests(unittest.TestCase):
         wait_for_idle(self.app)
         return dialog
 
+    def two_mode_payload(self):
+        self.payload["controllers"] = [
+            {"ctrl_id": "0", "ctrl_name": "CtrlA", "max_width": "4"},
+            {"ctrl_id": "1", "ctrl_name": "CtrlB", "max_width": "2"},
+        ]
+        self.payload["mapping"]["rows"].append({
+            "mode": "1", "lane0": "0-0", "lane1": "0-1", "lane2": "1-0", "lane3": "1-1",
+        })
+        return self.payload
+
     def test_button_exports_unsaved_edits_without_writing_workspace(self):
         page = ConfigPage()
         page.set_content(self.payload)
@@ -83,10 +94,12 @@ class TopologyGuiTests(unittest.TestCase):
             "arch": "serdes", "pclk-mode": "pclk_as_phy_input", "dpr": True,
         }
         dialog = self.open_dialog()
+        dialog.compact_checkbox.setChecked(False)
+        dialog.path_selector.setCurrentIndex(dialog.path_selector.findData("clock"))
         text = dialog.preview.toPlainText()
         self.assertIn("pipe_lane_clk_gate", text)
         self.assertIn('dpr["DPR"]', text)
-        self.assertIn('clk_or_0 -.->|"phy_pclk#91;0#93;"| phy_0', text)
+        self.assertIn('clk_or_0 -.->|"phy_pclk[0]"| phy_0', text)
 
     def test_copy_and_save_preserve_complete_utf8_text(self):
         dialog = self.open_dialog()
@@ -162,6 +175,121 @@ class TopologyGuiTests(unittest.TestCase):
         page.set_editable(False)
         self.assertFalse(dialog.timer.isActive())
         self.assertFalse(dialog.isVisible())
+
+    def test_four_categories_include_all_lanes_without_lane_selector(self):
+        dialog = self.open_dialog()
+        self.assertFalse(hasattr(dialog, "lane_selector"))
+        self.assertEqual(dialog.path_selector.currentData(), "clock")
+        self.assertTrue(dialog.compact_checkbox.isChecked())
+        self.assertIn("PHY Lanes 0..3", dialog.graph.source)
+        dialog.compact_checkbox.setChecked(False)
+        self.assertEqual([dialog.path_selector.itemText(i) for i in range(4)],
+                         ["时钟", "复位", "数据 M2P", "数据 P2M"])
+        with patch("plm.frontend.qt.views.topology_dialog.WorkspaceService.validate",
+                   side_effect=AssertionError("Category selection should reuse the validated snapshot")):
+            for category in ("clock", "reset", "m2p", "p2m"):
+                dialog.path_selector.setCurrentIndex(dialog.path_selector.findData(category))
+                self.assertEqual(dialog.graph.source.count('["PHY Lane '), 4)
+        text = dialog.preview.toPlainText()
+        self.assertEqual(text, dialog.graph.source)
+        self.assertIn('phy_3["PHY Lane 3"]', text)
+        dialog.copy_text()
+        self.assertEqual(self.app.clipboard().text(), text)
+
+    def test_category_switch_displays_only_selected_function(self):
+        self.payload["gen_flags"]["dpr"] = True
+        dialog = self.open_dialog()
+        dialog.compact_checkbox.setChecked(False)
+        self.assertIn("clk_gate_2_", dialog.graph.source)
+        dialog.path_selector.setCurrentIndex(dialog.path_selector.findData("reset"))
+        self.assertIn("reset_rst_n_2", dialog.graph.source)
+        self.assertNotIn("clk_gate_", dialog.graph.source)
+        dialog.path_selector.setCurrentIndex(dialog.path_selector.findData("m2p"))
+        self.assertIn("mux_2", dialog.graph.source)
+        self.assertNotIn("p2m_mux_", dialog.graph.source)
+        dialog.path_selector.setCurrentIndex(dialog.path_selector.findData("p2m"))
+        self.assertIn("p2m_mux_", dialog.graph.source)
+        self.assertNotIn("clk_gate_", dialog.graph.source)
+
+    def test_category_survives_live_edits_and_lane_count_changes(self):
+        dialog = self.open_dialog()
+        dialog.path_selector.setCurrentIndex(dialog.path_selector.findData("p2m"))
+        self.payload["controllers"][0]["ctrl_name"] = "RenamedController"
+        dialog.set_payload(self.payload)
+        wait_for_idle(self.app)
+        self.assertEqual(dialog.path_selector.currentData(), "p2m")
+        self.assertIn("RenamedController", dialog.graph.source)
+        self.payload["mapping"] = {
+            "lane_count": 2, "rows": [{"mode": "0", "lane0": "0-0", "lane1": "0-1"}],
+        }
+        self.payload["controllers"][0]["max_width"] = "2"
+        dialog.set_payload(self.payload)
+        wait_for_idle(self.app)
+        self.assertIn("PHY Lanes 0..1", dialog.graph.source)
+        self.assertEqual(dialog.path_selector.currentData(), "p2m")
+        self.assertIn("phy_0", dialog.graph.source)
+        self.assertNotIn("phy_3", dialog.graph.source)
+
+    def test_compact_toggle_changes_replication_and_export_together(self):
+        self.payload["gen_flags"]["dpr"] = True
+        dialog = self.open_dialog()
+        dialog.path_selector.setCurrentIndex(dialog.path_selector.findData("m2p"))
+        compact = dialog.preview.toPlainText()
+        self.assertIn("PHY Lanes 0..3", compact)
+        self.assertIn("x4 independent", compact)
+        self.assertEqual(compact.count('["pipe_lane_data_mux'), 1)
+        dialog.compact_checkbox.setChecked(False)
+        detailed = dialog.preview.toPlainText()
+        self.assertEqual(detailed.count('["PHY Lane '), 4)
+        self.assertEqual(detailed.count('["pipe_lane_data_mux'), 4)
+        dialog.copy_text()
+        self.assertEqual(self.app.clipboard().text(), detailed)
+        dialog.compact_checkbox.setChecked(True)
+        self.assertEqual(dialog.preview.toPlainText(), compact)
+
+    def test_mode_selector_highlights_selected_routes_and_exports_styles(self):
+        dialog = self.open_dialog(self.two_mode_payload())
+        self.assertEqual([dialog.mode_selector.itemData(i) for i in range(3)], [None, 0, 1])
+        self.assertEqual(dialog.mode_selector.currentData(), 0)
+        original = dialog.preview.toPlainText()
+        with patch("plm.frontend.qt.views.topology_dialog.WorkspaceService.validate",
+                   side_effect=AssertionError("Mode selection must reuse the validated snapshot")):
+            dialog.mode_selector.setCurrentIndex(dialog.mode_selector.findData(1))
+        text = dialog.preview.toPlainText()
+        color = topology_mode_color(1, (0, 1))
+        self.assertNotEqual(original, text)
+        self.assertIn(f"stroke:{color}", text)
+        self.assertIn(color, dialog.active_key.styleSheet())
+        self.assertIn("Mode 1", dialog.status.text())
+        dialog.copy_text()
+        self.assertEqual(self.app.clipboard().text(), text)
+        with patch("plm.frontend.qt.views.topology_dialog.QtWidgets.QFileDialog") as factory:
+            factory.return_value.exec_.return_value = QtWidgets.QDialog.Rejected
+            dialog.save_text()
+            self.assertIn("mode_1.mmd", factory.call_args.args[2])
+        dialog.mode_selector.setCurrentIndex(0)
+        self.assertNotIn("linkStyle", dialog.preview.toPlainText())
+        self.assertTrue(dialog.active_key.isHidden())
+
+    def test_mode_selection_survives_live_edits_and_removal_falls_back(self):
+        dialog = self.open_dialog(self.two_mode_payload())
+        dialog.mode_selector.setCurrentIndex(dialog.mode_selector.findData(1))
+        self.payload["controllers"][0]["ctrl_name"] = "RenamedA"
+        dialog.set_payload(self.payload)
+        self.assertFalse(dialog.mode_selector.isEnabled())
+        wait_for_idle(self.app)
+        self.assertEqual(dialog.mode_selector.currentData(), 1)
+        self.payload["mapping"]["rows"].pop()
+        self.payload["controllers"].pop()
+        dialog.set_payload(self.payload)
+        wait_for_idle(self.app)
+        self.assertEqual(dialog.mode_selector.currentData(), 0)
+        dialog.mode_selector.setCurrentIndex(0)
+        self.payload["controllers"][0]["ctrl_name"] = "UpdatedA"
+        dialog.set_payload(self.payload)
+        wait_for_idle(self.app)
+        self.assertIsNone(dialog.mode_selector.currentData())
+        self.assertNotIn("linkStyle", dialog.preview.toPlainText())
 
 
 if __name__ == "__main__":
