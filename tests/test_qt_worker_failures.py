@@ -90,7 +90,9 @@ class WorkerLifecycleTests(unittest.TestCase):
 
         application = Mock()
         application.exec_.side_effect = run_loop
-        with patch.object(gui.QtWidgets, "QApplication", return_value=application), patch.object(gui, "MainWindow"):
+        with patch.object(QtWidgets, "QApplication", return_value=application), patch(
+            "plm.frontend.qt.main_window.MainWindow"
+        ):
             self.assertEqual(gui.main([]), 17)
         self.assertTrue(finished.is_set(), "Entry point returned with worker Python code still running")
         self.wait_until(lambda: not self.runner._tasks)
@@ -124,7 +126,8 @@ class Window(QtWidgets.QWidget):
         else:
             QtCore.QTimer.singleShot(10, self.close_when_started)
 
-gui.MainWindow = Window
+from plm.frontend.qt import main_window
+main_window.MainWindow = Window
 print("MAIN_RESULT", gui.main([]), flush=True)
 '''
         environment = dict(os.environ, QT_QPA_PLATFORM="offscreen", PYTHONNOUSERSITE="1")

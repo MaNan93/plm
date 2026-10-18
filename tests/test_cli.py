@@ -128,8 +128,9 @@ class CliEntryPointTests(unittest.TestCase):
 
     def test_gui_entry_point_imports_and_forwards_arguments(self):
         from plm.frontend.qt import main as qt
+        from plm.frontend.qt.widgets.common import APP_ICON_PATH
 
-        self.assertTrue(qt.APP_ICON_PATH.is_file())
+        self.assertTrue(APP_ICON_PATH.is_file())
         with mock.patch.object(qt, "main", return_value=17) as launch:
             self.assertEqual(cli.cmd_gui(["-style", "Fusion"]), 17)
         launch.assert_called_once_with(["-style", "Fusion"])

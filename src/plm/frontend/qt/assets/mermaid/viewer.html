@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  html, body { margin: 0; height: 100%; background: #fff; color: #111827; }
+  #viewport { height: 100%; overflow: auto; cursor: grab; }
+  #canvas { box-sizing: border-box; padding: 16px; min-width: 100%; min-height: 100%; }
+  #canvas svg { display: block; margin: auto; max-width: none !important; }
+</style>
+<div id="viewport"><div id="canvas"></div></div>
+<script src="core-js.min.js"></script>
+<script src="mermaid.min.js"></script>
+<script>
+  let revision = 0, svgWidth = 0, svgHeight = 0, scale = 1;
+  let queue = Promise.resolve();
+  const viewport = document.getElementById('viewport');
+  const canvas = document.getElementById('canvas');
+  const report = (version, error) => console.info('PLM_TOPOLOGY:' + JSON.stringify({version, error}));
+
+  function resizeGraph() {
+    const svg = canvas.querySelector('svg');
+    if (svg) {
+      svg.style.width = (svgWidth * scale) + 'px';
+      svg.style.height = (svgHeight * scale) + 'px';
+    }
+  }
+  window.fitTopology = function () {
+    if (!svgWidth || !svgHeight) return;
+    scale = Math.min((viewport.clientWidth - 32) / svgWidth,
+                     (viewport.clientHeight - 32) / svgHeight, 1);
+    scale = Math.max(0.01, scale);
+    resizeGraph();
+    viewport.scrollLeft = viewport.scrollTop = 0;
+  };
+  window.zoomTopology = function (factor) {
+    scale = Math.max(0.01, Math.min(8, scale * factor));
+    resizeGraph();
+  };
+  window.invalidateTopology = function (version) {
+    revision = version;
+    canvas.textContent = '';
+    svgWidth = svgHeight = 0;
+  };
+  window.renderTopology = function (source, version) {
+    window.invalidateTopology(version);
+    // Mermaid uses document-global temporary IDs. Serialize its render calls,
+    // while discarding results whose revision has already been superseded.
+    queue = queue.catch(() => {}).then(async () => {
+      if (revision !== version) return;
+      try {
+        mermaid.initialize({
+          startOnLoad: false, securityLevel: 'strict', theme: 'default',
+          fontFamily: 'Arial, Microsoft YaHei, sans-serif',
+          maxTextSize: 1000000, maxEdges: 10000,
+          flowchart: { htmlLabels: false, useMaxWidth: false }
+        });
+        const result = await mermaid.render('topology_' + version, source);
+        if (revision !== version) return;
+        canvas.innerHTML = result.svg;
+        const svg = canvas.querySelector('svg');
+        svgWidth = svg.viewBox.baseVal.width;
+        svgHeight = svg.viewBox.baseVal.height;
+        window.fitTopology();
+        report(version, '');
+      } catch (error) {
+        if (revision !== version) return;
+        canvas.textContent = '';
+        report(version, String(error.message || error));
+      }
+    });
+  };
+  let drag = null;
+  viewport.addEventListener('pointerdown', event => {
+    if (event.button !== 0) return;
+    drag = {x: event.clientX, y: event.clientY, left: viewport.scrollLeft, top: viewport.scrollTop};
+    viewport.setPointerCapture(event.pointerId);
+    viewport.style.cursor = 'grabbing';
+    event.preventDefault();
+  });
+  viewport.addEventListener('pointermove', event => {
+    if (!drag) return;
+    viewport.scrollLeft = drag.left - event.clientX + drag.x;
+    viewport.scrollTop = drag.top - event.clientY + drag.y;
+  });
+  const endDrag = () => { drag = null; viewport.style.cursor = 'grab'; };
+  viewport.addEventListener('pointerup', endDrag);
+  viewport.addEventListener('pointercancel', endDrag);
+</script>
+</html>

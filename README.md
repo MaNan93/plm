@@ -30,6 +30,12 @@ The installed wheel still keeps Qt optional (`plm[qt]`). For a CLI-only source
 environment, use `uv sync --locked --no-default-groups` and
 `uv run --no-default-groups plm --help`.
 
+The **Mermaid 拓扑** button opens a live diagram of the current editor contents.
+Keep the window open while editing to update the diagram automatically; zoom,
+pan, inspect its Mermaid source, copy it or save a `.mmd` file. Rendering uses
+bundled local scripts and PyQtWebEngine, included in the GUI dependency group
+and the `qt` extra, without a runtime CDN connection.
+
 Run from the source directory:
 
 ```sh

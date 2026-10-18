@@ -24,6 +24,7 @@ PACKAGE_DATA = (
     "plm/frontend/qt/assets/*.png",
     "plm/frontend/qt/assets/*.svg",
     "plm/frontend/qt/assets/icons/*.svg",
+    "plm/frontend/qt/assets/mermaid/*",
     "plm/frontend/qt/styles/*.qss",
 )
 

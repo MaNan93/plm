@@ -27,6 +27,8 @@ class PackagingTests(unittest.TestCase):
             "src/plm/core/config/pipe_signals.csv": "name,direction\n",
             "src/plm/docs/tool_usage.md": "# Usage\n",
             "src/plm/frontend/qt/styles/app.qss": "QWidget {}\n",
+            "src/plm/frontend/qt/assets/mermaid/viewer.html": "<script src='mermaid.min.js'></script>\n",
+            "src/plm/frontend/qt/assets/mermaid/mermaid.min.js": "/* bundled renderer */\n",
             "scripts/check_wheel.py": "# release check\n",
             "tests/qt_test_support.py": "# shared test helper\n",
             "tests/fixtures/samples/demo/config/controllers.csv": "ctrl_id,ctrl_name,max_width\n",
@@ -70,7 +72,7 @@ class PackagingTests(unittest.TestCase):
         return path
 
     def test_wheel_checks_modules_and_runtime_resources(self):
-        self.assertEqual(release.check_wheel_contents(self.wheel(), self.root), 6)
+        self.assertEqual(release.check_wheel_contents(self.wheel(), self.root), 8)
 
     def test_wheel_rejects_stale_module_and_resource_bytes(self):
         for name in ("plm/cli/main.py", "plm/core/common/example.sv"):

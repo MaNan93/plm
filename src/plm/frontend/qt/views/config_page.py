@@ -6,6 +6,7 @@ from plm.frontend.qt.widgets.common import (
 )
 from plm.frontend.qt.widgets.config_editor import CsvTableEditor, GenerationEditor
 from plm.frontend.qt.views.artifacts_panel import ArtifactsPanel
+from plm.frontend.qt.views.topology_dialog import TopologyDialog
 from plm.frontend.qt.styles.tokens import (
     CONTROL_HEIGHT, HEADER_HEIGHT, SPACING_LG, SPACING_MD,
     ARTIFACTS_DEFAULT_WIDTH, ARTIFACTS_MIN_WIDTH,
@@ -284,6 +285,11 @@ class ConfigPage(RoundedCanvasFrame):
         self.tabs.setTabBar(ConfigTabBar(self.tabs))
         self.tabs.tabBar().setExpanding(False)
         self.tabs.setUsesScrollButtons(False)
+        self.topology_button = QtWidgets.QPushButton("Mermaid 拓扑")
+        self.topology_button.setFixedHeight(CONTROL_HEIGHT)
+        self.topology_button.setToolTip("实时查看当前配置的拓扑图，可复制或保存 Mermaid 文本")
+        self.topology_button.clicked.connect(self.show_topology)
+        self.tabs.setCornerWidget(self.topology_button, QtCore.Qt.TopRightCorner)
         self.controllers_editor = CsvTableEditor(("ctrl_id", "ctrl_name", "max_width"))
         self.mapping_editor = CsvTableEditor(("mode", "lane0", "lane1", "lane2", "lane3"), mapping=True)
         self.signals_editor = CsvTableEditor((
@@ -344,6 +350,22 @@ class ConfigPage(RoundedCanvasFrame):
         for editor in (self.controllers_editor, self.mapping_editor,
                        self.signals_editor, self.generation_editor):
             editor.setEnabled(bool(editable))
+        self.topology_button.setEnabled(bool(editable))
+        if not editable:
+            for dialog in self.findChildren(TopologyDialog):
+                dialog.close()
+
+    def show_topology(self):
+        if not self.topology_button.isEnabled():
+            return
+        self.finish_editing()
+        dialog = self.findChild(TopologyDialog)
+        if dialog is None:
+            dialog = TopologyDialog(self.content(), self, payload_provider=self.content)
+            self.historyChanged.connect(dialog.refresh_from_editor)
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
 
     def update_title(self, project_name):
         self.header.title_label.setText(project_name)
