@@ -1,7 +1,8 @@
 """Generate Mermaid summaries of clock, reset, and bidirectional data routing.
 
-This is a logical per-lane view, not an RTL instance/netlist export: clock
-gates shared by several lanes in the RTL are drawn beside each lane.
+This is a logical per-lane view, not an RTL instance/netlist export. Clock
+gate/OR networks are shown as one clock switch; standalone gating selects
+between the clock and zero.
 """
 
 from collections import Counter
@@ -84,6 +85,36 @@ def _lane_bundles(routes, lanes):
         groups = refined
 
 
+def _generate_data_mux_topology():
+    """Show the parameterized primitive's actual polarity-normalized datapath."""
+    return '''graph LR
+  %%{init: {"flowchart":{"defaultRenderer":"elk"}}}%%
+  din["din / N x WIDTH bits"]
+  sel["sel / N bits / one-hot or all 0"]
+  safe["safe / WIDTH bits"]
+  subgraph data_mux_module["pipe_lane_data_mux / parameters N, WIDTH"]
+    normalize["N x XOR / din[i] ^ safe"]
+    mask["N x AND / normalized[i] & sel[i]"]
+    reduce["OR reduction / acc"]
+    restore["XOR / acc ^ safe"]
+    normalize -->|"normalized[i]"| mask
+    mask -->|"selected terms"| reduce
+    reduce -->|"acc"| restore
+  end
+  dout["dout / WIDTH bits / sel=0: dout=safe"]
+  din -->|"din[i]"| normalize
+  safe -->|"safe"| normalize
+  sel -->|"sel[i] replicated WIDTH times"| mask
+  safe -->|"safe"| restore
+  restore -->|"dout"| dout
+  style data_mux_module fill:#F8FAFC,stroke:#64748B,color:#111827
+  style normalize fill:#F5F3FF,stroke:#8B5CF6,color:#111827
+  style mask fill:#F5F3FF,stroke:#8B5CF6,color:#111827
+  style reduce fill:#F5F3FF,stroke:#8B5CF6,color:#111827
+  style restore fill:#F5F3FF,stroke:#8B5CF6,color:#111827
+'''
+
+
 def generate_mermaid_topology(model, *, phy_lanes=None, path="all", compact=False, mode=None) -> str:
     """Return a standalone ``graph LR`` string, without Markdown fences.
 
@@ -103,6 +134,7 @@ def generate_mermaid_topology(model, *, phy_lanes=None, path="all", compact=Fals
     Single-candidate routes bypass the mux/gates when DPR is disabled.
     Optional phy_lanes selects physical lane numbers without renumbering;
     path may be 'clock', 'reset', 'm2p', or 'p2m'. 'data' aliases 'm2p';
+    'data_mux' shows the generic primitive independently of the mapping.
     'all' preserves the original M2P + forward-clock combined view.
     The clock-only view also shows return PCLK/recovered clocks. The reset
     view follows raw dec_tgt and includes independent perst_n for SerDes.
@@ -115,6 +147,8 @@ def generate_mermaid_topology(model, *, phy_lanes=None, path="all", compact=Fals
     color, other candidate routes fade to gray, and runtime-dependent DPR
     paths are amber. None keeps the unhighlighted all-mode view.
     """
+    if path == "data_mux":
+        return _generate_data_mux_topology()
     raw_controllers = _field(model, "controllers", [])
     entries = raw_controllers.values() if isinstance(raw_controllers, Mapping) else raw_controllers
     controllers = {}
@@ -190,7 +224,7 @@ def generate_mermaid_topology(model, *, phy_lanes=None, path="all", compact=Fals
     clock_port = "phy_pclk" if pclk_mode == "pclk_as_phy_input" else "phy_pclk_in"
 
     controller_nodes, logic_nodes, phy_nodes, edges, styles = [], [], [], [], []
-    clock_sources, source_gates, tie_nodes = [], [], []
+    clock_sources, source_switches, tie_nodes = [], [], []
     edge_states = []
 
     def node(target, node_id, text):
@@ -202,7 +236,7 @@ def generate_mermaid_topology(model, *, phy_lanes=None, path="all", compact=Fals
             fill, stroke = "#F0F9FF", "#0284C7"
         elif target is tie_nodes:
             fill, stroke = "#F8FAFC", "#94A3B8"
-        elif target is source_gates or node_id.startswith(("clk_", "rxclk_")):
+        elif target is source_switches or node_id.startswith(("clk_", "rxclk_")):
             fill, stroke = "#EFF6FF", "#3B82F6"
         elif node_id.startswith("reset_"):
             fill, stroke = "#FFFBEB", "#D97706"
@@ -216,17 +250,23 @@ def generate_mermaid_topology(model, *, phy_lanes=None, path="all", compact=Fals
 
     def edge(source, target, text, clock=False, *, modes=None, conditional=False):
         arrow = "-.->" if clock else "-->"
+        # The selected mode and route colors already express membership.
+        # Retain mode sets for styling, without repeating them on every wire.
+        text = "; ".join(field for field in text.split("; ") if not field.startswith("mode="))
         # Quoted edge labels accept these characters literally. Avoid entity
         # escapes here: the bundled ELK renderer otherwise escapes them twice.
         label = _diagram_label(text, "; ", safe="[]>")
         edges.append(f'  {source} {arrow}|"{label}"| {target}')
         edge_states.append((source, target, modes, conditional, clock))
 
-    for index, (cid, (name, width)) in enumerate(controllers.items()):
+    controller_colors = {cid: _COLORS[index % len(_COLORS)]
+                         for index, cid in enumerate(controllers)}
+    for cid in sorted(controllers):
         if cid not in visible_controllers:
             continue
+        name, width = controllers[cid]
         node(controller_nodes, f"ctrl_{cid}", f"{cid}: {name}")
-        color = _COLORS[index % len(_COLORS)]
+        color = controller_colors[cid]
         styles.append(f"  style ctrl_{cid} fill:#FFFFFF,stroke:{color},stroke-width:3px,color:#111827")
     if dpr:
         node(controller_nodes, "dpr", "DPR")
@@ -260,14 +300,13 @@ def generate_mermaid_topology(model, *, phy_lanes=None, path="all", compact=Fals
                 edge(source, phy, f"{clock_source} -> {port(clock_port, lane, sizes[lane])}", clock=True, modes=active_modes)
             continue
 
-        mux, clock_or = f"mux_{lane}", f"clk_or_{lane}"
+        mux, clock_switch = f"mux_{lane}", f"clk_switch_{lane}"
         if show_data:
             node(logic_nodes, mux, f"pipe_lane_data_mux / PHY {span(lane, sizes[lane])}" + copies(lane))
         if show_clock:
-            node(logic_nodes, clock_or, f"pipe_lane_clk_or / PHY {span(lane, sizes[lane])}"
+            node(logic_nodes, clock_switch, f"Clock switch / {len(branches)}:1 / PHY {span(lane, sizes[lane])}"
                  + (copies(lane) if pclk_mode == "pclk_as_phy_input" else ""))
-        for branch, (source, cl, label, active_modes) in enumerate(branches):
-            gate = f"clk_gate_{lane}_{branch}"
+        for source, cl, label, active_modes in branches:
             if show_data:
                 edge(source, mux, f"lane {span(cl, sizes[lane])}; {label}",
                      modes=active_modes, conditional=source == "dpr")
@@ -275,16 +314,12 @@ def generate_mermaid_topology(model, *, phy_lanes=None, path="all", compact=Fals
             if source == "dpr":
                 clock_source = "dpr_pclk"
             if show_clock:
-                node(logic_nodes, gate, f"pipe_lane_clk_gate / PHY {span(lane, sizes[lane])} / branch {branch}"
-                     + (copies(lane) if pclk_mode == "pclk_as_phy_input" else ""))
-                edge(source, gate, f"{clock_source}; {label}", clock=True,
-                     modes=active_modes, conditional=source == "dpr")
-                edge(gate, clock_or, "gated clock", clock=True,
+                edge(source, clock_switch, f"{clock_source}; {label}", clock=True,
                      modes=active_modes, conditional=source == "dpr")
         if show_data:
             edge(mux, phy, "MAC -> PHY data")
         if show_clock:
-            edge(clock_or, phy, port(clock_port, lane, sizes[lane]), clock=True)
+            edge(clock_switch, phy, port(clock_port, lane, sizes[lane]), clock=True)
 
     if path == "reset":
         resets = ("rst_n", "perst_n") if pclk_mode == "pclk_as_phy_input" else ("rst_n",)
@@ -368,15 +403,15 @@ def generate_mermaid_topology(model, *, phy_lanes=None, path="all", compact=Fals
                     edge(rx_source, f"ctrl_{cid}",
                          f"{port('rx_clk', lane, sizes[lane])} -> {port('rx_clk', cl, sizes[lane])}; {label}", clock=True, modes=modes)
                 else:
-                    gate = f"rxclk_gate_{lane}_{cid}_{cl}"
-                    node(source_gates, gate, f"pipe_lane_clk_gate / RX PHY {span(lane, sizes[lane])}" + copies(lane))
-                    edge(rx_source, gate, f"{port('rx_clk', lane, sizes[lane])}; rxclk_en; {label}", clock=True, modes=modes)
-                    edge(gate, f"ctrl_{cid}", port("rx_clk", cl, sizes[lane]), clock=True, modes=modes)
+                    switch = f"rxclk_switch_{lane}_{cid}_{cl}"
+                    node(source_switches, switch, f"Clock switch / 2:1 / RX PHY {span(lane, sizes[lane])} / else=0" + copies(lane))
+                    edge(rx_source, switch, f"{port('rx_clk', lane, sizes[lane])}; rxclk_en; {label}", clock=True, modes=modes)
+                    edge(switch, f"ctrl_{cid}", port("rx_clk", cl, sizes[lane]), clock=True, modes=modes)
             if dpr:
-                gate = f"rxclk_gate_{lane}_dpr"
-                node(source_gates, gate, f"pipe_lane_clk_gate / DPR RX PHY {span(lane, sizes[lane])}" + copies(lane))
-                edge(rx_source, gate, f"{port('rx_clk', lane, sizes[lane])}; synchronized DPR rxclk_en", clock=True, conditional=True)
-                edge(gate, "dpr", port("dpr_rx_clk", lane, sizes[lane]), clock=True, conditional=True)
+                switch = f"rxclk_switch_{lane}_dpr"
+                node(source_switches, switch, f"Clock switch / 2:1 / DPR RX PHY {span(lane, sizes[lane])} / else=0" + copies(lane))
+                edge(rx_source, switch, f"{port('rx_clk', lane, sizes[lane])}; synchronized DPR rxclk_en", clock=True, conditional=True)
+                edge(switch, "dpr", port("dpr_rx_clk", lane, sizes[lane]), clock=True, conditional=True)
         if phy_lanes is None:
             used_ports = {(cid, cl) for per_lane in routes.values() for cid, cl in per_lane}
             for cid in sorted(visible_controllers):
@@ -401,13 +436,10 @@ def generate_mermaid_topology(model, *, phy_lanes=None, path="all", compact=Fals
             for lane in sorted(set(lowest_by_mode.values()) & set(lanes)):
                 edge(f"phy_pclk_source_{lane}", f"ctrl_{cid}", f"phy_pclk_out[{lane}] -> ctrl_pclk", clock=True)
         if dpr:
-            node(source_gates, "dpr_pclk_or", "pipe_lane_clk_or / DPR working clock")
+            node(source_switches, "dpr_pclk_switch", f"Clock switch / {sum(sizes.values())}:1 / DPR working clock")
             for lane in lanes:
-                gate = f"dpr_pclk_gate_{lane}"
-                node(source_gates, gate, f"pipe_lane_clk_gate / DPR clock source PHY {span(lane, sizes[lane])}" + copies(lane))
-                edge(f"phy_pclk_source_{lane}", gate, f"{port('phy_pclk_out', lane, sizes[lane])}; synchronized lowest mask bit / idle default", clock=True, conditional=True)
-                edge(gate, "dpr_pclk_or", "gated clock", clock=True, conditional=True)
-            edge("dpr_pclk_or", "dpr", "dpr_pclk", clock=True, conditional=True)
+                edge(f"phy_pclk_source_{lane}", "dpr_pclk_switch", f"{port('phy_pclk_out', lane, sizes[lane])}; synchronized lowest mask bit / idle default", clock=True, conditional=True)
+            edge("dpr_pclk_switch", "dpr", "dpr_pclk", clock=True, conditional=True)
 
     logic_title = {"reset": "Reset Logic", "p2m": "PHY to MAC Data", "m2p": "MAC to PHY Data",
                    "clock": "Clock Logic"}.get(path, "Mux / Clock Logic")
@@ -415,7 +447,7 @@ def generate_mermaid_topology(model, *, phy_lanes=None, path="all", compact=Fals
              "  %% Logical routing; dotted edges are clocks."]
     groups = [
         ("clock_sources", "PHY Clock Source Ports", clock_sources),
-        ("source_gates", "Clock Source Gates", source_gates),
+        ("source_switches", "Clock Source Switches", source_switches),
         ("controllers", "Controllers", controller_nodes),
         ("logic", logic_title, logic_nodes),
         ("phys", "PHY Lanes", phy_nodes),
@@ -443,6 +475,8 @@ def generate_mermaid_topology(model, *, phy_lanes=None, path="all", compact=Fals
             declarations.extend((f"stroke:{color}", f"stroke-width:{width}", f"opacity:{opacity}"))
         selector = f".flowchart-link.LS-{source}.LE-{target}:nth-of-type({index + 1})"
         edge_css.append(selector + "{" + ";".join(declarations) + "}")
-    config = {"flowchart": {"defaultRenderer": "elk"}, "themeCSS": "".join(edge_css)}
+    config = {"flowchart": {"defaultRenderer": "elk"},
+              "elk": {"considerModelOrder": "NODES_AND_EDGES", "forceNodeModelOrder": True},
+              "themeCSS": "".join(edge_css)}
     lines[1] = "  %%{init: " + json.dumps(config, separators=(",", ":")) + "}%%"
     return "\n".join([*lines, *edges, *styles]) + "\n"

@@ -66,7 +66,17 @@ def assert_routes_clear():
             return {id: rect.parentNode.getAttribute('data-id'), x: b.x + m.e, y: b.y + m.f,
                     width: b.width, height: b.height};
         });
+        for (const prefix of ['ctrl_', 'phy_', 'phy_pclk_source_', 'phy_rx_source_']) {
+            const numbered = boxes.filter(box => new RegExp('^' + prefix + '[0-9]+$').test(box.id))
+                .sort((a, b) => +a.id.slice(prefix.length) - +b.id.slice(prefix.length));
+            for (let i = 1; i < numbered.length; i++) {
+                if (numbered[i - 1].y + numbered[i - 1].height > numbered[i].y + 0.5)
+                    return {error: 'numbered nodes out of vertical order', prefix, nodes: numbered};
+            }
+        }
         const paths = Array.from(svg.querySelectorAll('.flowchart-link'));
+        if (Array.from(svg.querySelectorAll('.edgeLabel')).some(label => /mode=[0-9]/.test(label.textContent)))
+            return {error: 'redundant mode annotation'};
         const ports = Array.from(svg.querySelectorAll('.topology-port'));
         if (ports.length !== paths.length * 2) return {error: 'missing port markers'};
         for (const port of ports) {
@@ -103,6 +113,43 @@ def assert_routes_clear():
     assert geometry["nodes"] and geometry["edges"], geometry
 
 
+def assert_aligned_feedback_is_straight():
+    routes = evaluate("""(() => {
+        const paths = Array.from(document.querySelectorAll('#canvas svg .flowchart-link'))
+            .filter(path => Array.from(path.classList).some(c => /^LS-phy_pclk_source_[0-9]+$/.test(c)));
+        return paths.map(path => {
+            const start = path.getPointAtLength(0), end = path.getPointAtLength(path.getTotalLength());
+            const bounds = path.getBBox();
+            return {aligned: Math.abs(start.y - end.y) < 0.01, height: bounds.height};
+        });
+    })()""")
+    assert routes and any(route["aligned"] for route in routes), routes
+    assert all(not route["aligned"] or route["height"] < 0.01 for route in routes), routes
+
+
+# Independent, aligned PHY feedback sources have no obstacle to route around.
+feedback_model = {
+    'controllers': [{'id': cid, 'name': f'Ctrl{cid}', 'max_width': 4} for cid in range(4)],
+    'lane_mapping': {0: {lane: (lane // 4, lane % 4) for lane in range(16)}},
+    'lane_count': 16, 'pclk_mode': 'pclk_as_phy_output', 'dpr': False,
+}
+assert wait_render(generate_mermaid_topology(feedback_model, path='clock', compact=True))[0]
+assert_routes_clear()
+assert_aligned_feedback_is_straight()
+
+
+# Scrambled model IDs, reverse lane ownership and double-digit IDs must not
+# turn insertion order or edge crossing reduction into the displayed order.
+ordered_model = {
+    'controllers': [{'id': cid, 'name': f'Ctrl{cid}', 'max_width': 3} for cid in (2, 10, 0, 1)],
+    'lane_mapping': {0: {lane: ((10, 2, 1, 0)[lane // 3], lane % 3) for lane in range(12)}},
+    'lane_count': 12, 'pclk_mode': 'pclk_as_phy_input', 'dpr': True,
+}
+for route in ('clock', 'reset', 'm2p', 'p2m'):
+    for compact in (False, True):
+        assert wait_render(generate_mermaid_topology(ordered_model, path=route, compact=compact))[0]
+        assert_routes_clear()
+
 count, category_count, compact_count = 0, 0, 0
 for directory in sorted((Path(__file__).parent / "fixtures" / "samples").glob("*/config")):
     config = Config(directory)
@@ -137,11 +184,14 @@ for directory in sorted((Path(__file__).parent / "fixtures" / "samples").glob("*
                 if route == "clock":
                     assert "pipe_lane_data_mux" not in labels
                 else:
-                    assert "pipe_lane_clk_gate" not in labels
+                    assert "Clock switch" not in labels
+                assert "pipe_lane_clk_gate" not in labels and "pipe_lane_clk_or" not in labels
                 if route == "reset":
                     assert ("perst_n" in labels) == (mode == "pclk_as_phy_input")
                 category_count += 1
-                if dpr:
+                # PHY feedback sources can move to different ELK layers even
+                # with DPR disabled; include the reported compact clock case.
+                if dpr or route == "clock":
                     original_nodes = evaluate("document.querySelectorAll('#canvas svg .node').length")
                     source = generate_mermaid_topology(model, path=route, compact=True)
                     ok, error = wait_render(source)

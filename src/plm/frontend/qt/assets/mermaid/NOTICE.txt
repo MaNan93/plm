@@ -2,6 +2,10 @@ Mermaid 10.9.5 (MIT)
 Source: https://registry.npmjs.org/mermaid/-/mermaid-10.9.5.tgz
 Package integrity: sha512-eRlKEjzak4z1rcXeCd1OAlyawhrptClQDo8OuI8n6bSVqJ9oMfd5Lrf3Q+TdJHewi/9AIOc3UmEo8Fz+kNzzuQ==
 Bundled locally for Qt 5 WebEngine compatibility; no CDN is used at runtime.
+Local ELK adapter: delegate layout to the optional
+window.plmLayoutTopology(engine, graph) hook from topology-layout.js.
+topology-routing.js shortens obstacle-free orthogonal paths and repositions
+their labels before the original bundled renderer creates nodes and edges.
 
 core-js-bundle 3.46.0 (MIT), compatibility APIs for Qt 5 Chromium.
 Source: https://registry.npmjs.org/core-js-bundle/-/core-js-bundle-3.46.0.tgz

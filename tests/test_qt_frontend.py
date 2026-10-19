@@ -102,7 +102,10 @@ class QtFrontendLayoutTests(unittest.TestCase):
             self.window.title_bar,
         )
         self.assertFalse(hasattr(self.window.nav_panel, "collapse_btn"))
-        self.assertEqual(self.window.config_page.header.findChildren(QtWidgets.QPushButton), [])
+        self.assertEqual(
+            self.window.config_page.header.findChildren(QtWidgets.QPushButton),
+            [self.window.config_page.header.topology_button],
+        )
         for widget in (self.window.main_container, self.window.config_page.config_area,
                        self.window.config_page.header):
             self.assertEqual(widget.focusPolicy(), QtCore.Qt.NoFocus)

@@ -14,3 +14,5 @@ work/
 ui-screenshots/
 /examples/*/rtl/
 /examples/*/tb/
+/*.png
+.codex*/

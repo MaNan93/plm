@@ -28,7 +28,6 @@ class TopologyDialog(QtWidgets.QDialog):
         self.payload_provider = payload_provider
         self._payload = None
         self._plan = None
-        self._mode_initialized = False
         self.timer = QtCore.QTimer(self)
         self.timer.setSingleShot(True)
         self.timer.setInterval(350)
@@ -39,7 +38,8 @@ class TopologyDialog(QtWidgets.QDialog):
         self.path_selector = StyledComboBox()
         self.path_selector.setAccessibleName("原理图类型")
         for label, value in (("时钟", "clock"), ("复位", "reset"),
-                             ("数据 M2P", "m2p"), ("数据 P2M", "p2m")):
+                             ("数据 M2P", "m2p"), ("数据 P2M", "p2m"),
+                             ("子模块 data_mux", "data_mux")):
             self.path_selector.addItem(label, value)
         caption = QtWidgets.QLabel("类型")
         caption.setBuddy(self.path_selector)
@@ -47,6 +47,7 @@ class TopologyDialog(QtWidgets.QDialog):
         selection.addWidget(self.path_selector)
         self.mode_selector = StyledComboBox()
         self.mode_selector.setAccessibleName("Mode")
+        self.mode_selector.setSizeAdjustPolicy(QtWidgets.QComboBox.AdjustToContents)
         self.mode_selector.setEnabled(False)
         mode_caption = QtWidgets.QLabel("Mode")
         mode_caption.setBuddy(self.mode_selector)
@@ -133,26 +134,29 @@ class TopologyDialog(QtWidgets.QDialog):
         previous = self.mode_selector.currentData()
         blocker = QtCore.QSignalBlocker(self.mode_selector)
         self.mode_selector.clear()
-        self.mode_selector.addItem("全部 Mode", None)
         for mode in plan.modes:
             self.mode_selector.addItem(f"Mode {mode}", mode)
-        index = self.mode_selector.findData(previous) if self._mode_initialized else 1
-        self.mode_selector.setCurrentIndex(index if index >= 0 else 1)
-        self._mode_initialized = True
+        self.mode_selector.setMinimumContentsLength(
+            max((len(f"Mode {mode}") for mode in plan.modes), default=0) + 1
+        )
+        index = self.mode_selector.findData(previous)
+        self.mode_selector.setCurrentIndex(index if index >= 0 else 0)
         del blocker
         self.mode_selector.setEnabled(True)
         self.conditional_key.setVisible(plan.options.dpr)
         self._show_selected()
 
     def _show_selected(self, *_):
-        if self._plan is None:
+        if self._plan is None or self.mode_selector.currentIndex() < 0:
             return
         mode = self.mode_selector.currentData()
-        self.active_key.setVisible(mode is not None)
-        self.inactive_key.setVisible(mode is not None)
-        self.conditional_key.setVisible(mode is not None and self._plan.options.dpr)
-        if mode is not None:
-            self.active_key.setStyleSheet(f"color: {topology_mode_color(mode, self._plan.modes)};")
+        module_view = self.path_selector.currentData() == "data_mux"
+        self.mode_selector.setEnabled(not module_view)
+        self.compact_checkbox.setEnabled(not module_view)
+        self.active_key.setVisible(not module_view)
+        self.inactive_key.setVisible(not module_view)
+        self.conditional_key.setVisible(not module_view and self._plan.options.dpr)
+        self.active_key.setStyleSheet(f"color: {topology_mode_color(mode, self._plan.modes)};")
         text = generate_mermaid_topology(
             self._plan, path=self.path_selector.currentData(),
             compact=self.compact_checkbox.isChecked(),
@@ -169,6 +173,9 @@ class TopologyDialog(QtWidgets.QDialog):
         self.graph.set_source(text)
 
     def _render_finished(self, ok, error):
+        if ok and self.path_selector.currentData() == "data_mux":
+            self.status.setText("pipe_lane_data_mux · 参数 N、WIDTH · sel=0 时 dout=safe")
+            return
         self.status.setText(
             f"{self.path_selector.currentText()} · {self.mode_selector.currentText()}"
             if ok else f"图形预览失败：{error} 可切换到 Mermaid 源文本。"
@@ -189,7 +196,8 @@ class TopologyDialog(QtWidgets.QDialog):
             return
         dialog = QtWidgets.QFileDialog(
             self, "保存 Mermaid 拓扑",
-            f"topology_{self.path_selector.currentData()}_mode_{self.mode_selector.currentData() if self.mode_selector.currentData() is not None else 'all'}.mmd",
+            "pipe_lane_data_mux.mmd" if self.path_selector.currentData() == "data_mux" else
+            f"topology_{self.path_selector.currentData()}_mode_{self.mode_selector.currentData()}.mmd",
             "Mermaid (*.mmd);;所有文件 (*)",
         )
         dialog.setAcceptMode(QtWidgets.QFileDialog.AcceptSave)

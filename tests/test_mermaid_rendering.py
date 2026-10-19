@@ -22,7 +22,9 @@ class MermaidRenderingTests(unittest.TestCase):
         result = subprocess.run(
             [sys.executable, str(probe)], env=environment,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-            encoding="utf-8", errors="replace", timeout=150,
+            # The complete matrix now checks numeric ordering as well as
+            # routing; some graphs require a second ELK routing pass.
+            encoding="utf-8", errors="replace", timeout=300,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("OFFLINE_RENDER_PASS", result.stdout)

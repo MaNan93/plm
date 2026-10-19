@@ -13,6 +13,38 @@ from sample_data import SAMPLES_DIR
 
 
 class MermaidTopologyTests(unittest.TestCase):
+    def test_data_mux_module_shows_ports_and_safe_normalization(self):
+        graph = generate_mermaid_topology(self.model(), path="data_mux")
+        self.assertIn('subgraph data_mux_module["pipe_lane_data_mux / parameters N, WIDTH"]', graph)
+        for port in ('din', 'sel', 'safe', 'dout'):
+            self.assertRegex(graph, rf'(?m)^  {port}\[')
+        self.assertIn('din[i] ^ safe', graph)
+        self.assertIn('normalized[i] & sel[i]', graph)
+        self.assertIn('OR reduction / acc', graph)
+        self.assertIn('acc ^ safe', graph)
+        self.assertIn('sel=0: dout=safe', graph)
+        self.assertIn('one-hot or all 0', graph)
+        self.assertNotIn('ctrl_', graph)
+        self.assertNotIn('-.->', graph)
+        self.assertEqual(graph, generate_mermaid_topology(self.wide_model(), path="data_mux", mode=1, compact=True))
+
+    def test_numeric_node_order_preserves_controller_palette(self):
+        model = {
+            'controllers': [{'id': cid, 'name': f'Ctrl{cid}', 'max_width': 1}
+                            for cid in (2, 10, 0, 1)],
+            'lane_count': 12,
+            'lane_mapping': {0: {10: (2, 0), 2: (10, 0), 1: (0, 0), 0: (1, 0)}},
+        }
+        for path in ('all', 'clock', 'reset', 'm2p', 'p2m'):
+            with self.subTest(path=path):
+                graph = generate_mermaid_topology(model, path=path)
+                ids = list(map(int, re.findall(r'^\s+ctrl_(\d+)\[', graph, re.MULTILINE)))
+                lanes = list(map(int, re.findall(r'^\s+phy_(\d+)\[', graph, re.MULTILINE)))
+                self.assertEqual(ids, [0, 1, 2, 10])
+                self.assertEqual(lanes, list(range(12)))
+                self.assertIn('style ctrl_2 fill:#FFFFFF,stroke:#4F46E5', graph)
+                self.assertIn('"forceNodeModelOrder":true', graph)
+
     def test_mode_palette_reserves_gray_and_amber_for_other_states(self):
         for mode in range(12):
             self.assertNotIn(topology_mode_color(mode, range(12)),
@@ -45,13 +77,16 @@ class MermaidTopologyTests(unittest.TestCase):
         graph = generate_mermaid_topology(self.model())
         self.assertTrue(graph.startswith("graph LR\n"))
         self.assertIn('ctrl_7["7: CtrlA"]', graph)
-        self.assertIn('ctrl_7 -->|"lane 0; mode=0,2; data"| phy_0', graph)
+        self.assertIn('ctrl_7 -->|"lane 0; data"| phy_0', graph)
         self.assertNotIn("mux_0", graph)
-        self.assertIn('ctrl_7 -->|"lane 1; mode=0"| mux_1', graph)
-        self.assertIn('ctrl_12 -->|"lane 0; mode=2"| mux_1', graph)
-        self.assertIn('clk_gate_1_0 -.->|"gated clock"| clk_or_1', graph)
-        self.assertIn('clk_or_1 -.->|"phy_pclk_in[1]"| phy_1', graph)
-        self.assertNotIn("mux_1 --> clk_gate", graph)
+        self.assertNotIn("clk_switch_0", graph)
+        self.assertIn('ctrl_7 -->|"lane 1"| mux_1', graph)
+        self.assertIn('ctrl_12 -->|"lane 0"| mux_1', graph)
+        self.assertIn('ctrl_7 -.->|"ctrl_pclk"| clk_switch_1', graph)
+        self.assertIn('clk_switch_1["Clock switch / 2:1 / PHY 1"]', graph)
+        self.assertIn('clk_switch_1 -.->|"phy_pclk_in[1]"| phy_1', graph)
+        self.assertNotIn("clk_gate_", graph)
+        self.assertNotIn("clk_or_", graph)
 
     def test_phy_input_clock_and_dpr_on_plan_shaped_object(self):
         model = self.model()
@@ -62,8 +97,9 @@ class MermaidTopologyTests(unittest.TestCase):
         graph = generate_mermaid_topology(plan)
         self.assertIn('dpr["DPR"]', graph)
         self.assertIn('dpr -->|"lane 0; v_lane_mask[0]=1"| mux_0', graph)
-        self.assertIn('ctrl_7 -.->|"pclk[1]; mode=0; v_lane_mask[1]=0"| clk_gate_1_0', graph)
-        self.assertIn('clk_or_1 -.->|"phy_pclk[1]"| phy_1', graph)
+        self.assertIn('ctrl_7 -.->|"pclk[1]; v_lane_mask[1]=0"| clk_switch_1', graph)
+        self.assertIn('clk_switch_1["Clock switch / 3:1 / PHY 1"]', graph)
+        self.assertIn('clk_switch_1 -.->|"phy_pclk[1]"| phy_1', graph)
 
     def test_names_cannot_inject_nodes_or_html(self):
         model = self.model()
@@ -118,7 +154,7 @@ class MermaidTopologyTests(unittest.TestCase):
         }
         graph = generate_mermaid_topology(model)
         self.assertIn('ctrl_7["7: 控制器甲"]', graph)
-        self.assertIn('ctrl_7 -->|"lane 0; mode=2; data"| phy_0', graph)
+        self.assertIn('ctrl_7 -->|"lane 0; data"| phy_0', graph)
 
     def test_lane_selection_keeps_physical_numbers_and_original_colors(self):
         graph = generate_mermaid_topology(self.model(), phy_lanes=[1], path="data")
@@ -139,14 +175,14 @@ class MermaidTopologyTests(unittest.TestCase):
         self.assertNotIn("clk_gate_", data)
         self.assertNotIn("clk_or_", data)
         self.assertNotIn("-.->", data)
-        self.assertIn("pipe_lane_clk_gate", clock)
-        self.assertIn("pipe_lane_clk_or", clock)
+        self.assertIn("Clock switch", clock)
+        self.assertNotIn("pipe_lane_clk_gate", clock)
+        self.assertNotIn("pipe_lane_clk_or", clock)
         self.assertNotIn("mux_", clock)
         self.assertNotIn(" -->", clock)
         for graph in (data, clock):
             self.assertIn('dpr["DPR"]', graph)
-            self.assertIn("mode=0", graph)
-            self.assertIn("mode=2", graph)
+            self.assertNotIn("mode=", graph)
 
     def test_direct_routes_can_be_split_and_invalid_filters_are_rejected(self):
         data = generate_mermaid_topology(self.model(), phy_lanes=[0], path="data")
@@ -164,7 +200,7 @@ class MermaidTopologyTests(unittest.TestCase):
     def test_reset_uses_raw_decoder_and_separate_serdes_perst(self):
         model = self.model()
         graph = generate_mermaid_topology(model, path="reset")
-        self.assertIn('ctrl_7 -->|"ctrl_rst_n[7] -> phy_rst_n[0]; mode=0,2"| phy_0', graph)
+        self.assertIn('ctrl_7 -->|"ctrl_rst_n[7] -> phy_rst_n[0]"| phy_0', graph)
         self.assertIn("reset_rst_n_1", graph)
         self.assertIn("dec_tgt<br/>safe=0", graph)
         self.assertNotIn("perst_n", graph)
@@ -183,8 +219,8 @@ class MermaidTopologyTests(unittest.TestCase):
             2: {0: (12, 0), 1: (7, 0)},
         }
         graph = generate_mermaid_topology(model, path="p2m")
-        self.assertIn('phy_0 -->|"phy_phy2mac[0] -> ctrl lane 0<br/>mode=0<br/>sel_tgt"| p2m_mux_7_0', graph)
-        self.assertIn('phy_1 -->|"phy_phy2mac[1] -> ctrl lane 0<br/>mode=2<br/>sel_tgt"| p2m_mux_7_0', graph)
+        self.assertIn('phy_0 -->|"phy_phy2mac[0] -> ctrl lane 0; sel_tgt"| p2m_mux_7_0', graph)
+        self.assertIn('phy_1 -->|"phy_phy2mac[1] -> ctrl lane 0; sel_tgt"| p2m_mux_7_0', graph)
         self.assertIn('p2m_mux_7_0 -->|"ctrl lane 0; PHY -> MAC data"| ctrl_7', graph)
         self.assertIn("never mapped lanes=1", graph)
         self.assertIn("another real owner active", graph)
@@ -209,19 +245,21 @@ class MermaidTopologyTests(unittest.TestCase):
         self.assertNotIn("rx_clk", graph)
         model.update(pclk_mode="pclk_as_phy_input", dpr=True)
         graph = generate_mermaid_topology(model, path="clock")
-        self.assertIn("rxclk_gate_1_12_0", graph)
+        self.assertIn("rxclk_switch_1_12_0", graph)
+        self.assertIn("Clock switch / 2:1 / RX PHY 1 / else=0", graph.replace("<br/>", " / "))
         self.assertIn("dpr_rx_clk", graph)
         self.assertNotIn("phy_pclk_out", graph)
         model["pclk_mode"] = "pclk_as_phy_output"
         graph = generate_mermaid_topology(model, path="clock")
-        self.assertIn("dpr_pclk_gate_1", graph)
-        self.assertIn('dpr_pclk_or -.->|"dpr_pclk"| dpr', graph)
+        self.assertIn('phy_pclk_source_1 -.->', graph)
+        self.assertIn('dpr_pclk_switch -.->|"dpr_pclk"| dpr', graph)
 
     def test_all_categories_include_all_phy_lanes_and_legacy_data_alias(self):
         for path in ("clock", "reset", "m2p", "p2m"):
             with self.subTest(path=path):
                 graph = generate_mermaid_topology(self.model(), path=path)
                 self.assertEqual(graph.count('["PHY Lane '), 2)
+                self.assertNotIn("mode=", graph)
         graph = generate_mermaid_topology(self.model(), path="m2p")
         self.assertIn("mux_1", graph)
         self.assertNotIn("clk_gate", graph)
@@ -246,8 +284,10 @@ class MermaidTopologyTests(unittest.TestCase):
                 self.assertIn('phy_0["PHY Lanes 0..3 / x4"]', graph)
                 self.assertIn('phy_4["PHY Lanes 4..7 / x4"]', graph)
                 self.assertNotIn('phy_1[', graph)
-                if path != "reset":
+                if path in ("m2p", "p2m"):
                     self.assertIn("x4 independent", graph)
+                elif path == "clock":
+                    self.assertNotIn("x4 independent", graph)
         p2m = generate_mermaid_topology(model, path="p2m", compact=True)
         self.assertIn("ctrl lane 4..7", p2m)
         self.assertNotIn("never mapped", p2m)
@@ -260,6 +300,7 @@ class MermaidTopologyTests(unittest.TestCase):
         clock = generate_mermaid_topology(model, path="clock", compact=True)
         self.assertIn("pclk[7:4]", clock)
         self.assertIn("rx_clk[7:4]", clock)
+        self.assertIn("x4 independent", clock)
 
     def test_compact_does_not_merge_different_ports_or_fine_grained_owners(self):
         model = self.wide_model()
@@ -270,6 +311,22 @@ class MermaidTopologyTests(unittest.TestCase):
             self.assertIn(f'phy_{lane}["PHY Lane {lane}"]', graph)
         self.assertEqual(generate_mermaid_topology(self.model(), compact=True),
                          generate_mermaid_topology(self.model()))
+
+    def test_clock_switch_counts_inputs_and_keeps_selection_conditions(self):
+        model = self.wide_model()
+        model['dpr'] = True
+        graph = generate_mermaid_topology(model, path='clock', compact=True, mode=1)
+        # Two PHY bus blocks, but DPR selects one of eight physical clocks.
+        self.assertIn('clk_switch_0["Clock switch / 2:1 / PHY 0..3"]', graph)
+        self.assertIn('clk_switch_4["Clock switch / 3:1 / PHY 4..7"]', graph)
+        self.assertIn('dpr_pclk_switch["Clock switch / 8:1 / DPR working clock"]', graph)
+        self.assertEqual(len(re.findall(r'^\s+\w+\["Clock switch', graph, re.MULTILINE)), 3)
+        self.assertIn('v_lane_mask[7:4]=all 0', graph)
+        self.assertIn('v_lane_mask[7:4]=all 1', graph)
+        self.assertIn('phy_pclk_out[7:4]', graph)
+        self.assertIn('synchronized lowest mask bit / idle default', graph)
+        self.assertNotIn('pipe_lane_clk_gate', graph)
+        self.assertNotIn('pipe_lane_clk_or', graph)
 
     def test_compact_refines_buses_when_p2m_candidate_slices_differ(self):
         model = {
@@ -290,25 +347,26 @@ class MermaidTopologyTests(unittest.TestCase):
     def test_selected_mode_colors_m2p_and_entire_clock_branches(self):
         active = topology_mode_color(2, (0, 2))
         edges = self.colored_edges(generate_mermaid_topology(self.model(), path="m2p", mode=2))
-        self.assert_edge_color(edges, 'ctrl_7 -->|"lane 1;', INACTIVE_ROUTE_COLOR)
+        self.assert_edge_color(edges, 'ctrl_7 -->|"lane 1"', INACTIVE_ROUTE_COLOR)
         self.assert_edge_color(edges, 'ctrl_12 -->', active)
         self.assert_edge_color(edges, 'mux_1 -->', active)
         model = self.model()
         model["pclk_mode"] = "pclk_as_phy_input"
         edges = self.colored_edges(generate_mermaid_topology(model, path="clock", mode=2))
-        self.assert_edge_color(edges, "clk_gate_1_0 -.->", INACTIVE_ROUTE_COLOR)
-        self.assert_edge_color(edges, "clk_gate_1_1 -.->", active)
-        self.assert_edge_color(edges, "rxclk_gate_1_7_1 -.->", INACTIVE_ROUTE_COLOR)
-        self.assert_edge_color(edges, "rxclk_gate_1_12_0 -.->", active)
+        self.assert_edge_color(edges, 'ctrl_7 -.->|"pclk[1]"', INACTIVE_ROUTE_COLOR)
+        self.assert_edge_color(edges, 'ctrl_12 -.->|"pclk[0]"', active)
+        self.assert_edge_color(edges, "clk_switch_1 -.->", active)
+        self.assert_edge_color(edges, "rxclk_switch_1_7_1 -.->", INACTIVE_ROUTE_COLOR)
+        self.assert_edge_color(edges, "rxclk_switch_1_12_0 -.->", active)
 
     def test_mode_highlights_reset_and_p2m_tie_fallback(self):
         active = topology_mode_color(2, (0, 2))
         edges = self.colored_edges(generate_mermaid_topology(self.model(), path="reset", mode=2))
-        self.assert_edge_color(edges, 'ctrl_7 -->|"ctrl_rst_n[7]; mode=0;', INACTIVE_ROUTE_COLOR)
+        self.assert_edge_color(edges, 'ctrl_7 -->|"ctrl_rst_n[7]; dec_tgt', INACTIVE_ROUTE_COLOR)
         self.assert_edge_color(edges, 'ctrl_12 -->', active)
         self.assert_edge_color(edges, 'reset_rst_n_1 -->', active)
         edges = self.colored_edges(generate_mermaid_topology(self.model(), path="p2m", mode=2))
-        self.assert_edge_color(edges, 'phy_1 -->|"phy_phy2mac[1] -> ctrl lane 1<br/>', INACTIVE_ROUTE_COLOR)
+        self.assert_edge_color(edges, 'phy_1 -->|"phy_phy2mac[1] -> ctrl lane 1; sel_tgt', INACTIVE_ROUTE_COLOR)
         self.assert_edge_color(edges, 'p2m_tie_7 -->', active)
         self.assert_edge_color(edges, 'p2m_tie_12 -->', INACTIVE_ROUTE_COLOR)
 

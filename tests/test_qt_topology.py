@@ -97,9 +97,9 @@ class TopologyGuiTests(unittest.TestCase):
         dialog.compact_checkbox.setChecked(False)
         dialog.path_selector.setCurrentIndex(dialog.path_selector.findData("clock"))
         text = dialog.preview.toPlainText()
-        self.assertIn("pipe_lane_clk_gate", text)
+        self.assertIn("Clock switch", text)
         self.assertIn('dpr["DPR"]', text)
-        self.assertIn('clk_or_0 -.->|"phy_pclk[0]"| phy_0', text)
+        self.assertIn('clk_switch_0 -.->|"phy_pclk[0]"| phy_0', text)
 
     def test_copy_and_save_preserve_complete_utf8_text(self):
         dialog = self.open_dialog()
@@ -183,8 +183,8 @@ class TopologyGuiTests(unittest.TestCase):
         self.assertTrue(dialog.compact_checkbox.isChecked())
         self.assertIn("PHY Lanes 0..3", dialog.graph.source)
         dialog.compact_checkbox.setChecked(False)
-        self.assertEqual([dialog.path_selector.itemText(i) for i in range(4)],
-                         ["时钟", "复位", "数据 M2P", "数据 P2M"])
+        self.assertEqual([dialog.path_selector.itemText(i) for i in range(dialog.path_selector.count())],
+                         ["时钟", "复位", "数据 M2P", "数据 P2M", "子模块 data_mux"])
         with patch("plm.frontend.qt.views.topology_dialog.WorkspaceService.validate",
                    side_effect=AssertionError("Category selection should reuse the validated snapshot")):
             for category in ("clock", "reset", "m2p", "p2m"):
@@ -200,16 +200,40 @@ class TopologyGuiTests(unittest.TestCase):
         self.payload["gen_flags"]["dpr"] = True
         dialog = self.open_dialog()
         dialog.compact_checkbox.setChecked(False)
-        self.assertIn("clk_gate_2_", dialog.graph.source)
+        self.assertIn("clk_switch_2", dialog.graph.source)
         dialog.path_selector.setCurrentIndex(dialog.path_selector.findData("reset"))
         self.assertIn("reset_rst_n_2", dialog.graph.source)
-        self.assertNotIn("clk_gate_", dialog.graph.source)
+        self.assertNotIn("clk_switch_", dialog.graph.source)
+
+    def test_data_mux_module_view_exports_and_restores_mapping_controls(self):
+        dialog = self.open_dialog(self.two_mode_payload())
+        dialog.mode_selector.setCurrentIndex(dialog.mode_selector.findData(1))
+        with patch("plm.frontend.qt.views.topology_dialog.WorkspaceService.validate",
+                   side_effect=AssertionError("Module view must reuse the validated snapshot")):
+            dialog.path_selector.setCurrentIndex(dialog.path_selector.findData("data_mux"))
+        self.assertIn('pipe_lane_data_mux / parameters N, WIDTH', dialog.graph.source)
+        self.assertIn('sel=0: dout=safe', dialog.graph.source)
+        self.assertFalse(dialog.mode_selector.isEnabled())
+        self.assertFalse(dialog.compact_checkbox.isEnabled())
+        self.assertTrue(dialog.active_key.isHidden())
+        self.assertTrue(dialog.inactive_key.isHidden())
+        self.assertIn('pipe_lane_data_mux', dialog.status.text())
+        dialog.copy_text()
+        self.assertEqual(self.app.clipboard().text(), dialog.graph.source)
+        with patch("plm.frontend.qt.views.topology_dialog.QtWidgets.QFileDialog") as factory:
+            factory.return_value.exec_.return_value = QtWidgets.QDialog.Rejected
+            dialog.save_text()
+            self.assertEqual(factory.call_args.args[2], "pipe_lane_data_mux.mmd")
+        dialog.path_selector.setCurrentIndex(dialog.path_selector.findData("clock"))
+        self.assertTrue(dialog.mode_selector.isEnabled())
+        self.assertTrue(dialog.compact_checkbox.isEnabled())
+        self.assertEqual(dialog.mode_selector.currentData(), 1)
         dialog.path_selector.setCurrentIndex(dialog.path_selector.findData("m2p"))
         self.assertIn("mux_2", dialog.graph.source)
         self.assertNotIn("p2m_mux_", dialog.graph.source)
         dialog.path_selector.setCurrentIndex(dialog.path_selector.findData("p2m"))
         self.assertIn("p2m_mux_", dialog.graph.source)
-        self.assertNotIn("clk_gate_", dialog.graph.source)
+        self.assertNotIn("clk_switch_", dialog.graph.source)
 
     def test_category_survives_live_edits_and_lane_count_changes(self):
         dialog = self.open_dialog()
@@ -249,7 +273,8 @@ class TopologyGuiTests(unittest.TestCase):
 
     def test_mode_selector_highlights_selected_routes_and_exports_styles(self):
         dialog = self.open_dialog(self.two_mode_payload())
-        self.assertEqual([dialog.mode_selector.itemData(i) for i in range(3)], [None, 0, 1])
+        self.assertEqual([dialog.mode_selector.itemData(i) for i in range(dialog.mode_selector.count())], [0, 1])
+        self.assertEqual([dialog.mode_selector.itemText(i) for i in range(dialog.mode_selector.count())], ['Mode 0', 'Mode 1'])
         self.assertEqual(dialog.mode_selector.currentData(), 0)
         original = dialog.preview.toPlainText()
         with patch("plm.frontend.qt.views.topology_dialog.WorkspaceService.validate",
@@ -268,8 +293,9 @@ class TopologyGuiTests(unittest.TestCase):
             dialog.save_text()
             self.assertIn("mode_1.mmd", factory.call_args.args[2])
         dialog.mode_selector.setCurrentIndex(0)
-        self.assertNotIn("linkStyle", dialog.preview.toPlainText())
-        self.assertTrue(dialog.active_key.isHidden())
+        self.assertEqual(dialog.mode_selector.currentData(), 0)
+        self.assertIn("linkStyle", dialog.preview.toPlainText())
+        self.assertFalse(dialog.active_key.isHidden())
 
     def test_mode_selection_survives_live_edits_and_removal_falls_back(self):
         dialog = self.open_dialog(self.two_mode_payload())
@@ -288,8 +314,9 @@ class TopologyGuiTests(unittest.TestCase):
         self.payload["controllers"][0]["ctrl_name"] = "UpdatedA"
         dialog.set_payload(self.payload)
         wait_for_idle(self.app)
-        self.assertIsNone(dialog.mode_selector.currentData())
-        self.assertNotIn("linkStyle", dialog.preview.toPlainText())
+        self.assertEqual(dialog.mode_selector.currentData(), 0)
+        self.assertEqual(dialog.mode_selector.count(), 1)
+        self.assertIn("linkStyle", dialog.preview.toPlainText())
 
 
 if __name__ == "__main__":

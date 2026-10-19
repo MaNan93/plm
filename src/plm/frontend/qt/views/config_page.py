@@ -133,6 +133,11 @@ class ConfigHeader(QtWidgets.QFrame):
         self.path_label.setSizePolicy(QtWidgets.QSizePolicy.Ignored, QtWidgets.QSizePolicy.Preferred)
         layout.addSpacing(SPACING_MD)
         layout.addWidget(self.path_label, 1)
+        layout.addSpacing(SPACING_MD)
+        self.topology_button = QtWidgets.QPushButton("原理图")
+        self.topology_button.setFixedHeight(CONTROL_HEIGHT)
+        self.topology_button.setToolTip("实时查看当前配置的原理图，可复制或保存 Mermaid 文本")
+        layout.addWidget(self.topology_button, 0, QtCore.Qt.AlignVCenter)
 
     def set_path(self, path):
         text = str(path) if path else ""
@@ -285,11 +290,8 @@ class ConfigPage(RoundedCanvasFrame):
         self.tabs.setTabBar(ConfigTabBar(self.tabs))
         self.tabs.tabBar().setExpanding(False)
         self.tabs.setUsesScrollButtons(False)
-        self.topology_button = QtWidgets.QPushButton("Mermaid 拓扑")
-        self.topology_button.setFixedHeight(CONTROL_HEIGHT)
-        self.topology_button.setToolTip("实时查看当前配置的拓扑图，可复制或保存 Mermaid 文本")
+        self.topology_button = self.header.topology_button
         self.topology_button.clicked.connect(self.show_topology)
-        self.tabs.setCornerWidget(self.topology_button, QtCore.Qt.TopRightCorner)
         self.controllers_editor = CsvTableEditor(("ctrl_id", "ctrl_name", "max_width"))
         self.mapping_editor = CsvTableEditor(("mode", "lane0", "lane1", "lane2", "lane3"), mapping=True)
         self.signals_editor = CsvTableEditor((
