@@ -844,8 +844,9 @@ QPushButton#ArtifactPathButton:checked:pressed {
     background-color: $primary_pressed;
 }
 
-/* Settings and configuration share the same underline navigation tokens. */
+/* Settings, configuration and topology share the same underline navigation tokens. */
 QTabWidget#ConfigTabs QTabBar::tab,
+QTabWidget#TopologyTabs QTabBar::tab,
 QPushButton#SecondaryMenuButton[underlineTab="true"] {
     background: transparent;
     color: $text_sub;
@@ -858,6 +859,7 @@ QPushButton#SecondaryMenuButton[underlineTab="true"] {
     font-weight: $font_weight_medium;
 }
 QTabWidget#ConfigTabs QTabBar::tab:hover:!selected,
+QTabWidget#TopologyTabs QTabBar::tab:hover:!selected,
 QPushButton#SecondaryMenuButton[underlineTab="true"]:hover,
 QPushButton#SecondaryMenuButton[underlineTab="true"]:focus:!pressed {
     background-color: $bg_subtle;
@@ -865,6 +867,7 @@ QPushButton#SecondaryMenuButton[underlineTab="true"]:focus:!pressed {
     border-bottom: $tab_indicator_height solid transparent;
 }
 QTabWidget#ConfigTabs QTabBar::tab:selected,
+QTabWidget#TopologyTabs QTabBar::tab:selected,
 QPushButton#SecondaryMenuButton[underlineTab="true"][selected="true"],
 QPushButton#SecondaryMenuButton[underlineTab="true"][selected="true"]:hover,
 QPushButton#SecondaryMenuButton[underlineTab="true"][selected="true"]:focus,
@@ -874,3 +877,144 @@ QPushButton#SecondaryMenuButton[underlineTab="true"][selected="true"]:pressed {
     border-bottom: $tab_indicator_height solid $primary;
     font-weight: $font_weight_semibold;
 }
+
+/* Modern Topology Dialog Styling */
+QDialog#TopologyDialog {
+    background-color: $bg_sidebar;
+}
+
+QFrame#TopologyToolbar {
+    background-color: $bg_surface;
+    border: 1px solid $border;
+    border-radius: $radius_card;
+}
+
+QFrame#TopologyToolbarSep {
+    color: $border;
+}
+
+QLabel#TopologyToolbarLabel {
+    color: $text_sub;
+    font-size: $font_size_small;
+    font-weight: $font_weight_medium;
+}
+
+QLabel#TopologyLegendKey {
+    font-size: $font_size_small;
+    font-weight: $font_weight_medium;
+    padding: 2px 8px;
+    border-radius: $radius_chip;
+    background-color: $bg_subtle;
+}
+
+QTabWidget#TopologyTabs {
+    background: transparent;
+    border: none;
+}
+
+QTabWidget#TopologyTabs::pane {
+    border: 1px solid $border_panel;
+    border-radius: $radius_card;
+    background-color: $bg_surface;
+}
+
+QTabWidget#TopologyTabs::tab-bar {
+    left: $spacing_sm;
+}
+
+QTabWidget#TopologyTabs QTabBar {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+}
+
+QTabWidget#TopologyTabs QTabBar::tab {
+    min-height: 36px;
+}
+
+QFrame#TopologyZoomBar {
+    background: transparent;
+    border: none;
+    margin-right: $spacing_sm;
+    margin-bottom: 4px;
+}
+
+QFrame#TopologyZoomBar QPushButton {
+    background-color: $bg_subtle;
+    border: 1px solid $border;
+    border-radius: $radius_control;
+    padding: 2px 10px;
+    font-size: $font_size_small;
+    font-weight: $font_weight_medium;
+    color: $text_main;
+    min-width: 24px;
+}
+
+QFrame#TopologyZoomBar QPushButton:hover {
+    background-color: $bg_hover;
+    border-color: $border_hover;
+}
+
+QFrame#TopologyZoomBar QPushButton:pressed {
+    background-color: $border;
+}
+
+QLabel#TopologyStatusLabel {
+    color: $text_sub;
+    font-size: $font_size_small;
+    background-color: $bg_surface;
+    border: 1px solid $border;
+    border-radius: $radius_control;
+    padding: 4px 12px;
+}
+
+QPushButton#TopologySecondaryAccentButton {
+    background-color: $bg_subtle;
+    border: 1px solid $border_hover;
+    border-radius: $radius_hover;
+    padding: $control_padding_y $control_padding_x;
+    color: $text_primary;
+    font-size: $font_size_body;
+    font-weight: $font_weight_medium;
+}
+
+QPushButton#TopologySecondaryAccentButton:hover {
+    background-color: $primary_soft;
+    border-color: $primary;
+}
+
+QPushButton#TopologySecondaryAccentButton:pressed {
+    background-color: $primary_pressed;
+}
+
+QPushButton#TopologySecondaryAccentButton:disabled {
+    background-color: $bg_subtle;
+    color: $text_muted;
+    border-color: $border;
+}
+
+QPushButton#TopologySubtleButton {
+    background-color: $bg_surface;
+    border: 1px solid $border;
+    border-radius: $radius_hover;
+    padding: $control_padding_y $control_padding_x;
+    color: $text_main;
+    font-size: $font_size_body;
+}
+
+QPushButton#TopologySubtleButton:hover {
+    background-color: $bg_hover;
+    border-color: $border_hover;
+}
+
+QPushButton#TopologySubtleButton:pressed {
+    background-color: $border;
+}
+
+QPushButton#TopologySubtleButton:disabled {
+    background-color: $bg_subtle;
+    color: $text_muted;
+    border-color: $border;
+}
+

@@ -7,12 +7,28 @@ from plm.core.gen_flags import GenerationOptions
 from plm.core.model import Config
 from plm.core.topology import (
     CONDITIONAL_ROUTE_COLOR, INACTIVE_ROUTE_COLOR,
-    generate_mermaid_topology, topology_mode_color,
+    generate_mermaid_topology, highlight_mermaid_topology, topology_mode_color,
 )
 from sample_data import SAMPLES_DIR
 
 
 class MermaidTopologyTests(unittest.TestCase):
+    def test_restyling_matches_fresh_export_for_each_path_filter_and_bundle(self):
+        model = self.model()
+        for path in ('clock', 'reset', 'm2p', 'p2m', 'all'):
+            for compact in (True, False):
+                for lanes in (None, (1,)):
+                    with self.subTest(path=path, compact=compact, lanes=lanes):
+                        source = generate_mermaid_topology(model, path=path, compact=compact, phy_lanes=lanes)
+                        for mode in sorted(model['lane_mapping']):
+                            source = highlight_mermaid_topology(source, mode)
+                            self.assertEqual(source, generate_mermaid_topology(
+                                model, path=path, compact=compact, phy_lanes=lanes, mode=mode))
+        with self.assertRaises(ValueError):
+            highlight_mermaid_topology(source, 999)
+        module = generate_mermaid_topology(model, path='data_mux')
+        self.assertEqual(highlight_mermaid_topology(module, 0), module)
+
     def test_data_mux_module_shows_ports_and_safe_normalization(self):
         graph = generate_mermaid_topology(self.model(), path="data_mux")
         self.assertIn('subgraph data_mux_module["pipe_lane_data_mux / parameters N, WIDTH"]', graph)

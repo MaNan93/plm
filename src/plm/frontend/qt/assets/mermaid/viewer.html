@@ -16,6 +16,7 @@
 <script>
   let revision = 0, svgWidth = 0, svgHeight = 0, scale = 1;
   let queue = Promise.resolve();
+  let modeMetadata = null, modeRoutes = [];
   const viewport = document.getElementById('viewport');
   const canvas = document.getElementById('canvas');
   const report = (version, error) => console.info('PLM_TOPOLOGY:' + JSON.stringify({version, error}));
@@ -49,7 +50,7 @@
     const ports = document.createElementNS(ns, 'g');
     ports.setAttribute('class', 'topology-ports');
     ports.style.pointerEvents = 'none';
-    for (const path of svg.querySelectorAll('.flowchart-link')) {
+    for (const [index, path] of Array.from(svg.querySelectorAll('.flowchart-link')).entries()) {
       const style = getComputedStyle(path), matrix = inverse.multiply(path.getCTM());
       for (const prefix of ['LS-', 'LE-']) {
         const endpoint = Array.from(path.classList).find(name => name.startsWith(prefix));
@@ -59,6 +60,7 @@
         const port = document.createElementNS(ns, 'circle');
         port.setAttribute('class', 'topology-port');
         port.setAttribute('data-node', endpoint.slice(3));
+        port.setAttribute('data-route', index);
         // The path ends before the arrowhead; project that point onto the box.
         port.setAttribute('cx', Math.max(box.left, Math.min(box.right, point.x)));
         port.setAttribute('cy', Math.max(box.top, Math.min(box.bottom, point.y)));
@@ -99,6 +101,126 @@
     }
   }
 
+  function bindTopologyModes(svg, source) {
+    const match = /^  %% PLM_TOPOLOGY (.+)$/m.exec(source);
+    modeMetadata = match ? JSON.parse(match[1]) : null;
+    modeRoutes = [];
+    if (!modeMetadata) return;
+    const paths = Array.from(svg.querySelectorAll('.flowchart-link'));
+    const labels = Array.from(svg.querySelectorAll('.edgeLabel'));
+    if (paths.length !== modeMetadata.edges.length) throw new Error('拓扑连线元数据不匹配');
+    const ports = new Map();
+    for (const port of svg.querySelectorAll('.topology-port')) {
+      const index = +port.getAttribute('data-route');
+      if (!ports.has(index)) ports.set(index, []);
+      ports.get(index).push(port);
+    }
+    modeRoutes = paths.map((path, index) => {
+      const edge = modeMetadata.edges[index];
+      if (!path.classList.contains('LS-' + edge[0]) || !path.classList.contains('LE-' + edge[1]))
+        throw new Error('拓扑连线顺序不匹配');
+      path.setAttribute('data-modes', edge[2] === null ? '*' : edge[2].join(','));
+      path.setAttribute('data-conditional', String(edge[3]));
+      const markers = ['marker-start', 'marker-end'].flatMap(attribute => {
+        const match = /#([^)'"\s]+)/.exec(path.getAttribute(attribute) || '');
+        const marker = match && svg.querySelector('[id="' + match[1] + '"]');
+        return marker ? Array.from(marker.querySelectorAll('path, polygon, circle')) : [];
+      });
+      return {path, modes: edge[2], conditional: edge[3], markers,
+        ports: ports.get(index) || [],
+        labels: labels[index] ? Array.from(labels[index].querySelectorAll('text')) : []};
+    });
+  }
+
+  window.highlightTopologyMode = function (activeMode) {
+    if (!modeMetadata || !canvas.querySelector('svg')) return false;
+    const activeColor = modeMetadata.colors[String(activeMode)];
+    if (!activeColor) return false;
+    for (const route of modeRoutes) {
+      const active = route.modes === null || route.modes.includes(activeMode);
+      const color = route.conditional ? modeMetadata.conditional :
+        active ? activeColor : modeMetadata.inactive;
+      const opacity = active || route.conditional ? '1' : '0.45';
+      route.path.style.stroke = color;
+      route.path.style.strokeWidth = active || route.conditional ? '2.5px' : '1px';
+      route.path.style.opacity = opacity;
+      for (const shape of route.markers) {
+        shape.style.fill = color;
+        shape.style.stroke = color;
+      }
+      for (const label of route.labels) label.style.fill = color;
+      for (const port of route.ports) {
+        port.setAttribute('fill', color);
+        port.setAttribute('opacity', opacity);
+      }
+    }
+    modeMetadata.mode = activeMode;
+    return true;
+  };
+
+  window.getTopologySvg = function () {
+    const svg = canvas.querySelector('svg');
+    if (!svg || !svgWidth || !svgHeight) return '';
+    const copy = svg.cloneNode(true);
+    // Freeze presentation styles, including fonts and the current mode. The
+    // result has no dependency on the page stylesheet or viewport zoom.
+    const properties = ['fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity',
+      'stroke-dasharray', 'stroke-linecap', 'stroke-linejoin', 'opacity', 'font-family',
+      'font-size', 'font-weight', 'font-style', 'text-anchor', 'dominant-baseline', 'visibility'];
+    const originals = [svg, ...svg.querySelectorAll('*')];
+    const copies = [copy, ...copy.querySelectorAll('*')];
+    originals.forEach((element, index) => {
+      if (['style', 'defs'].includes(element.tagName)) return;
+      const style = getComputedStyle(element);
+      for (const property of properties) copies[index].style.setProperty(property, style.getPropertyValue(property));
+    });
+    copy.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    copy.setAttribute('width', svgWidth);
+    copy.setAttribute('height', svgHeight);
+    copy.style.width = svgWidth + 'px';
+    copy.style.height = svgHeight + 'px';
+    copy.style.maxWidth = 'none';
+    copy.style.margin = '0';
+    return new XMLSerializer().serializeToString(copy);
+  };
+
+  window.exportTopologyPng = async function (request, factor, background) {
+    const version = revision;
+    let url;
+    const reportImage = (data, error) => console.info('PLM_TOPOLOGY_PNG:' +
+      JSON.stringify({request, data, error}));
+    try {
+      const source = window.getTopologySvg();
+      if (!source) throw new Error('原理图尚未渲染完成');
+      const width = Math.ceil(svgWidth * factor), height = Math.ceil(svgHeight * factor);
+      if (!Number.isFinite(factor) || factor <= 0 || width > 32767 || height > 32767 || width * height > 67108864)
+        throw new Error('导出尺寸过大或缩放比例无效');
+      const bitmap = document.createElement('canvas');
+      bitmap.width = width;
+      bitmap.height = height;
+      const context = bitmap.getContext('2d');
+      if (!context) throw new Error('无法创建 PNG 画布');
+      if (background) {
+        context.fillStyle = background;
+        context.fillRect(0, 0, width, height);
+      }
+      url = URL.createObjectURL(new Blob([source], {type: 'image/svg+xml;charset=utf-8'}));
+      const image = new Image();
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = () => reject(new Error('无法将 SVG 转换为 PNG'));
+        image.src = url;
+      });
+      if (version !== revision) throw new Error('配置已更新，请重新导出');
+      context.drawImage(image, 0, 0, width, height);
+      reportImage(bitmap.toDataURL('image/png'), '');
+    } catch (error) {
+      reportImage('', String(error.message || error));
+    } finally {
+      if (url) URL.revokeObjectURL(url);
+    }
+  };
+
   function resizeGraph() {
     const svg = canvas.querySelector('svg');
     if (svg) {
@@ -133,6 +255,8 @@
     revision = version;
     canvas.textContent = '';
     svgWidth = svgHeight = 0;
+    modeMetadata = null;
+    modeRoutes = [];
   };
   window.renderTopology = function (source, version) {
     window.invalidateTopology(version);
@@ -153,6 +277,7 @@
         const svg = canvas.querySelector('svg');
         colorRouteMarkers(svg);
         clarifyConnections(svg);
+        bindTopologyModes(svg, source);
         svgWidth = svg.viewBox.baseVal.width;
         svgHeight = svg.viewBox.baseVal.height;
         window.readTopology();

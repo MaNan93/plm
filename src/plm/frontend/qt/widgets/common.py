@@ -73,7 +73,8 @@ class ButtonSizingController(QtCore.QObject):
             # Native framed dialogs must have an opaque client surface even
             # when their owner is the translucent, frameless main window.
             painter = QtGui.QPainter(watched)
-            painter.fillRect(event.rect(), QtGui.QColor(get_theme_color("bg_main")))
+            bg_role = "bg_sidebar" if watched.objectName() == "TopologyDialog" else "bg_main"
+            painter.fillRect(event.rect(), QtGui.QColor(get_theme_color(bg_role)))
             painter.end()
         if (kind == QtCore.QEvent.Paint
                 and isinstance(watched, QtWidgets.QPushButton)

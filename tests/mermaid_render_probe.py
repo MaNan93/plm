@@ -1,11 +1,14 @@
 """Native WebEngine integration probe; never shows a desktop window."""
 
 import json
+import math
 from pathlib import Path
 import re
 import sys
+import tempfile
+import xml.etree.ElementTree as ET
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 from plm.core.model import Config
 from plm.core.topology import generate_mermaid_topology, topology_mode_color
@@ -55,6 +58,71 @@ def evaluate(script):
     loop.exec_()
     assert results, "JavaScript callback timed out"
     return results[0]
+
+
+def wait_callback(invoke):
+    loop, results = QtCore.QEventLoop(), []
+
+    def finished(*result):
+        results.append(result)
+        loop.quit()
+
+    timer = QtCore.QTimer()
+    timer.setSingleShot(True)
+    timer.timeout.connect(loop.quit)
+    timer.start(15000)
+    invoke(finished)
+    if not results:
+        loop.exec_()
+    timer.stop()
+    assert results, 'Export/highlight callback timed out'
+    return results[0]
+
+
+def highlight(mode):
+    def invoke(finished):
+        def result(ok, error):
+            view.renderFinished.disconnect(result)
+            finished(ok, error)
+        view.renderFinished.connect(result)
+        assert view.highlight_mode(mode)
+    ok, error = wait_callback(invoke)
+    assert ok, error
+
+
+def assert_image_exports():
+    source, = wait_callback(view.export_svg)
+    root = ET.fromstring(source)
+    assert root.tag == '{http://www.w3.org/2000/svg}svg'
+    assert root.get('viewBox')
+    assert 'topology-port' in source and 'topology-label-background' in source
+    assert '<marker' in source and '<style' in source
+    width, height = float(root.get('width')), float(root.get('height'))
+    # Full graph dimensions remain constant while zoomed/scrolled/cropped.
+    evaluate('window.zoomTopology(2); viewport.scrollLeft = 100; viewport.scrollTop = 80')
+    again, = wait_callback(view.export_svg)
+    assert again == source, 'Viewport zoom leaked into exported SVG'
+    image = view.export_png(scale=2.0)
+    assert not image.isNull(), view.image_export_error
+    assert (image.width(), image.height()) == (math.ceil(width * 2), math.ceil(height * 2))
+    assert image.pixelColor(0, 0) == QtGui.QColor('white')
+    # Decode actual file bytes and check for colored route/node pixels.
+    with tempfile.TemporaryDirectory() as directory:
+        filename = str(Path(directory) / 'topology.png')
+        assert image.save(filename, 'PNG')
+        decoded = QtGui.QImage(filename)
+        assert decoded.size() == image.size()
+    colors = set()
+    for y in range(0, image.height(), 2):
+        for x in range(0, image.width(), 2):
+            color = image.pixelColor(x, y)
+            colors.add(color.name().upper())
+    assert '#0D9488' in colors and '#D97706' in colors, colors
+    transparent, = wait_callback(lambda cb: view.export_png(scale=1.0, callback=cb, background=None))
+    assert not transparent.isNull(), view.image_export_error
+    assert transparent.pixelColor(0, 0).alpha() == 0
+    assert view.export_png(scale=0).isNull()
+    assert view.image_export_error
 
 
 def assert_routes_clear():
@@ -235,6 +303,7 @@ colored_model = {
     "pclk_mode": "pclk_as_phy_input", "dpr": True,
 }
 color_count = 0
+highlight_times = []
 for route in ("clock", "reset", "m2p", "p2m"):
     for selected_mode in (0, 2):
         source = generate_mermaid_topology(colored_model, path=route, compact=True, mode=selected_mode)
@@ -251,6 +320,73 @@ for route in ("clock", "reset", "m2p", "p2m"):
         assert {expected, 'rgb(203, 213, 225)', 'rgb(217, 119, 6)'} <= strokes, (route, strokes)
         assert all(entry['stroke'] == entry['fill'] for entry in colors), (route, colors)
         color_count += 1
+        # All mode changes must retain the actual DOM nodes and geometry. A
+        # renderer call here is a regression even if its result looks identical.
+        evaluate("""window.beforeSvg = canvas.querySelector('svg');
+            window.beforeGeometry = Array.from(beforeSvg.querySelectorAll('.flowchart-link'), p => p.getAttribute('d'));
+            window.originalRender = mermaid.render;
+            mermaid.render = () => { throw new Error('Mode switch triggered layout'); };
+            window.beforeMarkerCount = beforeSvg.querySelectorAll('marker').length;
+        """)
+        for target_mode in (2, 0, 2):
+            highlight(target_mode)
+            state = evaluate("""(() => {
+                const start = performance.now();
+                for (let i = 0; i < 10; i++) highlightTopologyMode(modeMetadata.mode);
+                const duration = (performance.now() - start) / 10;
+                const svg = canvas.querySelector('svg');
+                return {duration, same: svg === window.beforeSvg,
+                    geometry: Array.from(svg.querySelectorAll('.flowchart-link'), p => p.getAttribute('d')),
+                    markers: svg.querySelectorAll('marker').length,
+                    routes: modeRoutes.map(route => ({
+                        active: route.modes === null || route.modes.includes(modeMetadata.mode),
+                        conditional: route.conditional, color: getComputedStyle(route.path).stroke,
+                        opacity: route.path.style.opacity, width: route.path.style.strokeWidth,
+                        markers: route.markers.every(p => p.style.fill === route.path.style.stroke),
+                        labels: route.labels.every(p => getComputedStyle(p).fill === getComputedStyle(route.path).stroke),
+                        ports: route.ports.every(p => getComputedStyle(p).fill === getComputedStyle(route.path).stroke)
+                    }))};
+            })()""")
+            assert state['same']
+            assert state['geometry'] == evaluate('window.beforeGeometry')
+            assert state['markers'] == evaluate('window.beforeMarkerCount'), 'Marker leak'
+            for edge in state['routes']:
+                expected = ('#D97706' if edge['conditional'] else
+                            topology_mode_color(target_mode, (0, 2)) if edge['active'] else '#CBD5E1')
+                expected = QtGui.QColor(expected)
+                assert edge['color'] == f'rgb({expected.red()}, {expected.green()}, {expected.blue()})', edge
+                assert edge['markers'] and edge['ports'] and edge['labels'], edge
+                assert edge['opacity'] == ('1' if edge['active'] or edge['conditional'] else '0.45')
+                assert edge['width'] == ('2.5px' if edge['active'] or edge['conditional'] else '1px')
+            highlight_times.append(state['duration'])
+        evaluate('mermaid.render = window.originalRender')
+        if route == 'clock' and selected_mode == 2:
+            assert_image_exports()
+assert max(highlight_times) < 20, highlight_times
+
+# Rapid changes while the first layout is pending must apply the latest mode.
+loop = QtCore.QEventLoop()
+result = []
+def pending_finished(ok, error):
+    result.append((ok, error))
+    loop.quit()
+view.renderFinished.connect(pending_finished)
+view.set_source(generate_mermaid_topology(colored_model, path='clock', mode=0))
+for target_mode in (2, 0, 2):
+    assert view.highlight_mode(target_mode)
+QtCore.QTimer.singleShot(15000, loop.quit)
+loop.exec_()
+view.renderFinished.disconnect(pending_finished)
+assert result and result[-1][0], result
+assert evaluate('modeMetadata.mode') == 2
+# Both in-flight export types reject a superseded diagram.
+stale_svg = []
+view.export_svg(stale_svg.append)
+view.invalidate()
+QtCore.QTimer.singleShot(100, loop.quit)
+loop.exec_()
+assert stale_svg == [''], stale_svg
+assert view.export_png().isNull()
 assert evaluate("performance.getEntriesByType('resource').every(item => item.name.startsWith('file:'))")
 assert wait_render(generate_mermaid_topology({
     "controllers": [{"id": 0, "name": "A", "max_width": 1}],
@@ -269,6 +405,7 @@ evaluate('window.resetTopology()')
 assert evaluate('scale') == 1
 print("OFFLINE_RENDER_PASS " + json.dumps({"configurations": count, "category_views": category_count,
                                         "compact_views": compact_count, "colored_views": color_count,
+                                        "highlight_ms_max": max(highlight_times),
                                         "version": evaluate("navigator.userAgent")}))
 view.close()
 view.deleteLater()

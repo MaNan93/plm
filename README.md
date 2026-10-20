@@ -30,11 +30,16 @@ The installed wheel still keeps Qt optional (`plm[qt]`). For a CLI-only source
 environment, use `uv sync --locked --no-default-groups` and
 `uv run --no-default-groups plm --help`.
 
-The **Mermaid 拓扑** button opens a live diagram of the current editor contents.
+The **原理图** button opens a live diagram of the current editor contents.
 Keep the window open while editing to update the diagram automatically; zoom,
-pan, inspect its Mermaid source, copy it or save a `.mmd` file. Rendering uses
+pan, inspect its Mermaid source, copy it or save a `.mmd`, `.svg`, or high-resolution
+`.png` file. PNG export covers the complete graph at 2× resolution on a white
+background. The Mode selector updates route highlights without relaying out the
+graph. The filter selects all lanes occupied by a controller across all modes,
+preserving controller colors; **全部 Lane** restores the full view. Rendering uses
 bundled local scripts and PyQtWebEngine, included in the GUI dependency group
-and the `qt` extra, without a runtime CDN connection.
+and the `qt` extra, without a runtime CDN connection. Without PyQtWebEngine,
+Mermaid text export remains available and image export is disabled.
 
 Run from the source directory:
 

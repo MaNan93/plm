@@ -8,12 +8,13 @@ from unittest.mock import patch
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PyQt5 import QtCore, QtTest, QtWidgets
+from PyQt5 import QtCore, QtGui, QtTest, QtWidgets
 
 from plm.core.workspace import scaffold_default_content
-from plm.core.topology import topology_mode_color
+from plm.core.topology import generate_mermaid_topology, highlight_mermaid_topology, topology_mode_color
 from plm.frontend.qt.views.config_page import ConfigPage
 from plm.frontend.qt.views.topology_dialog import TopologyDialog
+from plm.frontend.qt.widgets.mermaid_view import MermaidView
 from qt_test_support import (
     dispose_new_widgets, isolate_host_formatter, preserve_application_state, wait_for_idle,
 )
@@ -23,12 +24,32 @@ class DiagramStub(QtWidgets.QWidget):
     """UI behavior is isolated from Chromium; a separate probe renders for real."""
     renderFinished = QtCore.pyqtSignal(bool, str)
 
+    def __init__(self):
+        super().__init__()
+        self.can_export_image = False
+        self.image_export_error = ""
+
     def invalidate(self, message=""):
         self.source = ""
+        self.can_export_image = False
 
     def set_source(self, source):
         self.source = source
+        self.can_export_image = True
         self.renderFinished.emit(True, "")
+
+    def highlight_mode(self, mode):
+        self.source = highlight_mermaid_topology(self.source, mode)
+        self.renderFinished.emit(True, "")
+        return True
+
+    def export_svg(self, callback):
+        callback('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 10"><text>端口</text></svg>')
+
+    def export_png(self, scale=2.0, callback=None, background="white"):
+        image = QtGui.QImage(int(20 * scale), int(10 * scale), QtGui.QImage.Format_ARGB32)
+        image.fill(QtCore.Qt.white)
+        callback(image)
 
 
 class TopologyGuiTests(unittest.TestCase):
@@ -317,6 +338,138 @@ class TopologyGuiTests(unittest.TestCase):
         self.assertEqual(dialog.mode_selector.currentData(), 0)
         self.assertEqual(dialog.mode_selector.count(), 1)
         self.assertIn("linkStyle", dialog.preview.toPlainText())
+
+    def test_mode_switch_restyles_without_regenerating_or_rendering(self):
+        dialog = self.open_dialog(self.two_mode_payload())
+        with patch("plm.frontend.qt.views.topology_dialog.generate_mermaid_topology",
+                   side_effect=AssertionError("Mode changes must not rebuild DSL")), \
+                patch("plm.frontend.qt.views.topology_dialog.highlight_mermaid_topology",
+                      side_effect=AssertionError("Mode changes should use cached export styles")), \
+                patch.object(dialog.graph, "set_source", side_effect=AssertionError("Must not relayout")):
+            for mode in (1, 0, 1, 0):
+                dialog.mode_selector.setCurrentIndex(dialog.mode_selector.findData(mode))
+                self.assertEqual(dialog.preview.toPlainText(), generate_mermaid_topology(
+                    dialog._plan, path="clock", compact=True, mode=mode))
+
+    def test_filter_uses_all_mode_lane_union_and_preserves_palette(self):
+        dialog = self.open_dialog(self.two_mode_payload())
+        self.assertEqual([dialog.filter_selector.itemText(i) for i in range(3)],
+                         ["全部 Lane", "仅 CtrlA", "仅 CtrlB"])
+        dialog.compact_checkbox.setChecked(False)
+        dialog.filter_selector.setCurrentIndex(dialog.filter_selector.findData(1))
+        self.assertIn('phy_2["PHY Lane 2"]', dialog.graph.source)
+        self.assertIn('phy_3["PHY Lane 3"]', dialog.graph.source)
+        self.assertNotIn('phy_0[', dialog.graph.source)
+        self.assertNotIn('phy_1[', dialog.graph.source)
+        self.assertIn('style ctrl_1 fill:#FFFFFF,stroke:#0D9488', dialog.graph.source)
+        with patch.object(dialog.graph, "set_source", side_effect=AssertionError("Mode must preserve layout")):
+            dialog.mode_selector.setCurrentIndex(1)
+        self.assertEqual(dialog.preview.toPlainText(), generate_mermaid_topology(
+            dialog._plan, phy_lanes=(2, 3), path="clock", mode=1))
+        dialog.path_selector.setCurrentIndex(dialog.path_selector.findData("p2m"))
+        self.assertNotIn('phy_0[', dialog.graph.source)
+        dialog.filter_selector.setCurrentIndex(0)
+        self.assertIn('phy_0[', dialog.graph.source)
+
+    def test_filter_preserved_on_edit_and_removed_controller_falls_back(self):
+        dialog = self.open_dialog(self.two_mode_payload())
+        dialog.filter_selector.setCurrentIndex(dialog.filter_selector.findData(1))
+        self.payload["controllers"][1]["ctrl_name"] = "RenamedB"
+        dialog.set_payload(self.payload)
+        self.assertFalse(dialog.filter_selector.isEnabled())
+        wait_for_idle(self.app)
+        self.assertEqual(dialog.filter_selector.currentData(), 1)
+        self.assertEqual(dialog.filter_selector.currentText(), "仅 RenamedB")
+        self.payload["mapping"]["rows"].pop()
+        self.payload["controllers"].pop()
+        dialog.set_payload(self.payload)
+        wait_for_idle(self.app)
+        self.assertIsNone(dialog.filter_selector.currentData())
+        self.assertIn("PHY Lanes 0..3", dialog.graph.source)
+
+    def test_filter_disabled_for_module_view_and_restored(self):
+        dialog = self.open_dialog(self.two_mode_payload())
+        dialog.filter_selector.setCurrentIndex(2)
+        dialog.path_selector.setCurrentIndex(dialog.path_selector.findData("data_mux"))
+        self.assertFalse(dialog.filter_selector.isEnabled())
+        dialog.path_selector.setCurrentIndex(0)
+        self.assertTrue(dialog.filter_selector.isEnabled())
+        self.assertEqual(dialog.filter_selector.currentData(), 1)
+
+    def test_repeated_filters_reuse_validation_and_do_not_start_tasks(self):
+        dialog = self.open_dialog(self.two_mode_payload())
+        with patch("plm.frontend.qt.views.topology_dialog.WorkspaceService.validate",
+                   side_effect=AssertionError("Filter must reuse plan")):
+            for index in (1, 2, 0) * 5:
+                dialog.filter_selector.setCurrentIndex(index)
+        self.assertFalse(dialog.timer.isActive())
+        self.assertFalse(dialog.tasks._tasks)
+        self.assertTrue(dialog.save_svg_button.isEnabled())
+
+    def test_svg_png_exports_and_write_errors(self):
+        dialog = self.open_dialog()
+        for suffix, button in (("svg", dialog.save_svg_button), ("png", dialog.save_png_button)):
+            with self.subTest(suffix=suffix):
+                path = self.root / ("原理图." + suffix)
+                with patch.object(dialog, "_choose_export_path", return_value=path):
+                    button.click()
+                if suffix == "svg":
+                    self.assertIn("端口", path.read_text(encoding="utf-8"))
+                else:
+                    image = QtGui.QImage(str(path))
+                    self.assertEqual((image.width(), image.height()), (40, 20))
+                with patch.object(dialog, "_choose_export_path", return_value=self.root / "missing" / path.name):
+                    button.click()
+                self.assertIn("保存失败", dialog.status.text())
+                with patch.object(dialog, "_choose_export_path", return_value=None), \
+                        patch.object(dialog.graph, "export_" + suffix) as export:
+                    button.click()
+                    export.assert_not_called()
+
+    def test_image_buttons_disabled_during_updates_and_render_failure(self):
+        dialog = self.open_dialog()
+        self.assertTrue(dialog.save_svg_button.isEnabled())
+        self.assertTrue(dialog.save_png_button.isEnabled())
+        self.payload["controllers"][0]["ctrl_name"] = "Edited"
+        dialog.set_payload(self.payload)
+        self.assertFalse(dialog.save_svg_button.isEnabled())
+        self.assertFalse(dialog.save_png_button.isEnabled())
+        wait_for_idle(self.app)
+        self.assertTrue(dialog.save_svg_button.isEnabled())
+        dialog._render_finished(False, "broken SVG")
+        self.assertFalse(dialog.save_svg_button.isEnabled())
+        self.assertFalse(dialog.save_png_button.isEnabled())
+        self.assertTrue(dialog.save_button.isEnabled())
+
+    def test_image_export_failure_reported_without_writing(self):
+        dialog = self.open_dialog()
+        path = self.root / "failed.svg"
+        with patch.object(dialog, "_choose_export_path", return_value=path), \
+                patch.object(dialog.graph, "export_svg", side_effect=lambda callback: callback("")):
+            dialog.save_svg()
+        self.assertFalse(path.exists())
+        self.assertIn("导出失败", dialog.status.text())
+        dialog.graph.image_export_error = "PNG failed"
+        with patch.object(dialog, "_choose_export_path", return_value=self.root / "failed.png"), \
+                patch.object(dialog.graph, "export_png", side_effect=lambda **kw: kw["callback"](QtGui.QImage())):
+            dialog.save_png()
+        self.assertIn("PNG failed", dialog.status.text())
+
+    def test_no_webengine_keeps_text_export_and_disables_images(self):
+        with patch("plm.frontend.qt.widgets.mermaid_view.QtWebEngineWidgets", None), \
+                patch("plm.frontend.qt.views.topology_dialog.MermaidView", MermaidView):
+            dialog = self.open_dialog(self.two_mode_payload())
+        self.assertIsNone(dialog.graph.web)
+        self.assertFalse(dialog.save_svg_button.isEnabled())
+        self.assertFalse(dialog.save_png_button.isEnabled())
+        self.assertTrue(dialog.save_button.isEnabled())
+        dialog.mode_selector.setCurrentIndex(1)
+        self.assertIn(topology_mode_color(1, (0, 1)), dialog.preview.toPlainText())
+        images, sources = [], []
+        dialog.graph.export_svg(sources.append)
+        dialog.graph.export_png(callback=images.append)
+        self.assertEqual(sources, [""])
+        self.assertTrue(images[0].isNull())
 
 
 if __name__ == "__main__":

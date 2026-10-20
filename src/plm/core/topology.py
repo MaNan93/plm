@@ -18,11 +18,48 @@ _COLORS = ("#4F46E5", "#0D9488", "#7C3AED", "#D97706", "#059669", "#E11D48")
 INACTIVE_ROUTE_COLOR = "#CBD5E1"
 CONDITIONAL_ROUTE_COLOR = "#D97706"
 _MODE_COLORS = ("#4F46E5", "#0D9488", "#7C3AED", "#2563EB", "#059669", "#E11D48")
+_METADATA_PREFIX = "  %% PLM_TOPOLOGY "
 
 
 def topology_mode_color(mode, modes):
     """One stable highlight color per mode, shared by the export and GUI key."""
     return _MODE_COLORS[sorted(modes).index(mode) % len(_MODE_COLORS)]
+
+
+def _route_styles(edge_states, mode, modes):
+    css, styles = [], []
+    active_color = topology_mode_color(mode, modes) if mode is not None else None
+    for index, (source, target, active_modes, conditional, clock) in enumerate(edge_states):
+        declarations = ["stroke-dasharray:3 3" if clock else "stroke-dasharray:none"]
+        if mode is not None:
+            active = active_modes is None or mode in active_modes
+            color = CONDITIONAL_ROUTE_COLOR if conditional else active_color if active else INACTIVE_ROUTE_COLOR
+            width = "2.5px" if active or conditional else "1px"
+            opacity = "1" if active or conditional else "0.45"
+            styles.append(f"  linkStyle {index} stroke:{color},stroke-width:{width},color:{color},opacity:{opacity}")
+            declarations.extend((f"stroke:{color}", f"stroke-width:{width}", f"opacity:{opacity}"))
+        selector = f".flowchart-link.LS-{source}.LE-{target}:nth-of-type({index + 1})"
+        css.append(selector + "{" + ";".join(declarations) + "}")
+    return "".join(css), styles
+
+
+def highlight_mermaid_topology(source, mode):
+    """Restyle an existing export without rebuilding routes or lane bundles."""
+    lines = source.splitlines()
+    metadata_index = next((i for i, line in enumerate(lines) if line.startswith(_METADATA_PREFIX)), None)
+    if metadata_index is None:  # The standalone data_mux diagram has no modes.
+        return source
+    metadata = json.loads(lines[metadata_index][len(_METADATA_PREFIX):])
+    modes = [int(value) for value in metadata["colors"]]
+    if mode not in modes:
+        raise ValueError(f"Undefined topology mode: {mode}")
+    css, styles = _route_styles(metadata["edges"], mode, modes)
+    config = json.loads(lines[1][len("  %%{init: "):-len("}%%")])
+    config["themeCSS"] = css
+    lines[1] = "  %%{init: " + json.dumps(config, separators=(",", ":")) + "}%%"
+    metadata["mode"] = mode
+    lines[metadata_index] = _METADATA_PREFIX + json.dumps(metadata, separators=(",", ":"))
+    return "\n".join([line for line in lines if not line.startswith("  linkStyle ")] + styles) + "\n"
 
 
 def _field(value, name, default=None):
@@ -462,21 +499,18 @@ def generate_mermaid_topology(model, *, phy_lanes=None, path="all", compact=Fals
             lines.extend([f"  %% {title}", *nodes])
     # Mermaid 10's ELK renderer omits edge stroke styles. Supply matching CSS
     # as well as linkStyle so the offline viewer and exported diagram agree.
-    edge_css = []
-    active_color = topology_mode_color(mode, modes_seen) if mode is not None else None
-    for index, (source, target, active_modes, conditional, clock) in enumerate(edge_states):
-        declarations = ["stroke-dasharray:3 3" if clock else "stroke-dasharray:none"]
-        if mode is not None:
-            active = active_modes is None or mode in active_modes
-            color = CONDITIONAL_ROUTE_COLOR if conditional else active_color if active else INACTIVE_ROUTE_COLOR
-            width = "2.5px" if active or conditional else "1px"
-            opacity = "1" if active or conditional else "0.45"
-            styles.append(f"  linkStyle {index} stroke:{color},stroke-width:{width},color:{color},opacity:{opacity}")
-            declarations.extend((f"stroke:{color}", f"stroke-width:{width}", f"opacity:{opacity}"))
-        selector = f".flowchart-link.LS-{source}.LE-{target}:nth-of-type({index + 1})"
-        edge_css.append(selector + "{" + ";".join(declarations) + "}")
+    edge_css, route_styles = _route_styles(edge_states, mode, modes_seen)
+    styles.extend(route_styles)
     config = {"flowchart": {"defaultRenderer": "elk"},
               "elk": {"considerModelOrder": "NODES_AND_EDGES", "forceNodeModelOrder": True},
-              "themeCSS": "".join(edge_css)}
+              "themeCSS": edge_css}
     lines[1] = "  %%{init: " + json.dumps(config, separators=(",", ":")) + "}%%"
+    metadata = {
+        "mode": mode,
+        "colors": {str(value): topology_mode_color(value, modes_seen) for value in sorted(modes_seen)},
+        "inactive": INACTIVE_ROUTE_COLOR, "conditional": CONDITIONAL_ROUTE_COLOR,
+        "edges": [[source, target, sorted(modes) if modes is not None else None, conditional, clock]
+                  for source, target, modes, conditional, clock in edge_states],
+    }
+    lines.append(_METADATA_PREFIX + json.dumps(metadata, separators=(",", ":")))
     return "\n".join([*lines, *edges, *styles]) + "\n"
