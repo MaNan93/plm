@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1050" viewBox="0 0 1600 1050">
+<rect width="1600" height="1050" fill="white"/>
+<style>text{font-family:Arial;font-size:23px;fill:#172b45}.small{font-size:19px;fill:#52677e}.wire{fill:none;stroke:#253c56;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}.gate{fill:#eef5ff;stroke:#253c56;stroke-width:3}</style>
+<text x="30" y="45" font-size="29">PHY-to-MAC: two generated data_mux instances, expanded per bit</text>
+<text x="30" y="80" class="small">G1: PHY lane1 belongs to CtrlA lane1 or CtrlB lane0. PCLK as PHY output, DPR disabled.</text>
+<g transform="translate(0,0)">
+<rect x="20" y="115" width="1560" height="350" rx="12" fill="none" stroke="#c3cfdd" stroke-width="2"/>
+<text x="40" y="145">u_p2m_ctrla_1 : pipe_lane_data_mux #(.WIDTH(PHY2MAC_W), .N(2))</text>
+<text x="40" y="220">phy_phy2mac[1]</text>
+<text x="245" y="257" class="small">SAFE_P2M</text>
+<path class="wire" d="M330 212 H403 M365 248 H403"/>
+<path data-gate="XOR" class="gate" d="M400 188 Q437 230 400 272 Q457 275 500 230 Q457 185 400 188 Z"/>
+<path class="wire" d="M388 188 Q425 230 388 272"/>
+<text x="422" y="174" class="small">XOR</text>
+<path class="wire" d="M500 230 H650"/>
+<path data-gate="AND" class="gate" d="M650 208 H690 A42 42 0 0 1 690 292 H650 Z"/>
+<text x="662" y="194" class="small">AND</text>
+<text x="510" y="277" class="small">sel_tgt.g1[0]</text>
+<path class="wire" d="M640 270 H650"/>
+<text x="40" y="400">ctrla_p2m_tie</text>
+<text x="245" y="437" class="small">SAFE_P2M</text>
+<path class="wire" d="M330 392 H403 M365 428 H403"/>
+<path data-gate="XOR" class="gate" d="M400 368 Q437 410 400 452 Q457 455 500 410 Q457 365 400 368 Z"/>
+<path class="wire" d="M388 368 Q425 410 388 452"/>
+<text x="422" y="354" class="small">XOR</text>
+<path class="wire" d="M500 410 H650"/>
+<path data-gate="AND" class="gate" d="M650 348 H690 A42 42 0 0 1 690 432 H650 Z"/>
+<text x="662" y="334" class="small">AND</text>
+<text x="510" y="377" class="small">sel_tgt.g1[1]</text>
+<path class="wire" d="M640 370 H650"/>
+<path class="wire" d="M732 250 H840 V297 H917 M732 390 H840 V343 H917"/>
+<path data-gate="OR" class="gate" d="M900 270 Q945 320 900 370 Q972 370 1025 320 Q972 270 900 270 Z"/>
+<text x="940" y="255" class="small">OR</text>
+<path class="wire" d="M1025 320 H1183 M1130 390 H1160 V350 H1183"/>
+<text x="1005" y="397" class="small">SAFE_P2M</text>
+<path data-gate="XOR" class="gate" d="M1180 290 Q1217 332 1180 374 Q1237 377 1280 332 Q1237 287 1180 290 Z"/>
+<path class="wire" d="M1168 290 Q1205 332 1168 374"/>
+<text x="1202" y="276" class="small">XOR</text>
+<path class="wire" d="M1280 332 H1340"/>
+<text x="1350" y="339">ctrla_phy2mac[1]</text>
+</g>
+<g transform="translate(0,450)">
+<rect x="20" y="115" width="1560" height="350" rx="12" fill="none" stroke="#c3cfdd" stroke-width="2"/>
+<text x="40" y="145">u_p2m_ctrlb_0 : pipe_lane_data_mux #(.WIDTH(PHY2MAC_W), .N(2))</text>
+<text x="40" y="220">ctrlb_p2m_tie</text>
+<text x="245" y="257" class="small">SAFE_P2M</text>
+<path class="wire" d="M330 212 H403 M365 248 H403"/>
+<path data-gate="XOR" class="gate" d="M400 188 Q437 230 400 272 Q457 275 500 230 Q457 185 400 188 Z"/>
+<path class="wire" d="M388 188 Q425 230 388 272"/>
+<text x="422" y="174" class="small">XOR</text>
+<path class="wire" d="M500 230 H650"/>
+<path data-gate="AND" class="gate" d="M650 208 H690 A42 42 0 0 1 690 292 H650 Z"/>
+<text x="662" y="194" class="small">AND</text>
+<text x="510" y="277" class="small">sel_tgt.g1[0]</text>
+<path class="wire" d="M640 270 H650"/>
+<text x="40" y="400">phy_phy2mac[1]</text>
+<text x="245" y="437" class="small">SAFE_P2M</text>
+<path class="wire" d="M330 392 H403 M365 428 H403"/>
+<path data-gate="XOR" class="gate" d="M400 368 Q437 410 400 452 Q457 455 500 410 Q457 365 400 368 Z"/>
+<path class="wire" d="M388 368 Q425 410 388 452"/>
+<text x="422" y="354" class="small">XOR</text>
+<path class="wire" d="M500 410 H650"/>
+<path data-gate="AND" class="gate" d="M650 348 H690 A42 42 0 0 1 690 432 H650 Z"/>
+<text x="662" y="334" class="small">AND</text>
+<text x="510" y="377" class="small">sel_tgt.g1[1]</text>
+<path class="wire" d="M640 370 H650"/>
+<path class="wire" d="M732 250 H840 V297 H917 M732 390 H840 V343 H917"/>
+<path data-gate="OR" class="gate" d="M900 270 Q945 320 900 370 Q972 370 1025 320 Q972 270 900 270 Z"/>
+<text x="940" y="255" class="small">OR</text>
+<path class="wire" d="M1025 320 H1183 M1130 390 H1160 V350 H1183"/>
+<text x="1005" y="397" class="small">SAFE_P2M</text>
+<path data-gate="XOR" class="gate" d="M1180 290 Q1217 332 1180 374 Q1237 377 1280 332 Q1237 287 1180 290 Z"/>
+<path class="wire" d="M1168 290 Q1205 332 1168 374"/>
+<text x="1202" y="276" class="small">XOR</text>
+<path class="wire" d="M1280 332 H1340"/>
+<text x="1350" y="339">ctrlb_phy2mac[0]</text>
+</g>
+<text x="30" y="958" class="small">Each panel retains its own 3 XOR + 2 AND + 1 OR. Identically named wires are the same net.</text>
+<text x="30" y="993" class="small">No shared XOR, no constant folding, no assumption that p2m_tie equals SAFE_P2M.</text>
+<text x="30" y="1025" class="small">RTL expression structure for this configuration; not a synthesized standard-cell netlist.</text>
+</svg>

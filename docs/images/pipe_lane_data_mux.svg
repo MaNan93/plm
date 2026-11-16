@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="610" viewBox="0 0 1200 610">
+<rect width="1200" height="610" fill="white"/>
+<style>text{font-family:Arial;fill:#172b45;font-size:25px}.wire{fill:none;stroke:#253c56;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}.gate{fill:#eef5ff;stroke:#253c56;stroke-width:3;stroke-linejoin:round}.small{font-size:21px;fill:#52677e}</style>
+<text x="50" y="49" font-size="30" font-weight="600">Two-input data_mux (one bit)</text>
+<text x="50" y="85" class="small">One-hot select: 01 → din[0]   /   10 → din[1]   /   00 → safe</text>
+<!-- XOR gates: separate curved input and OR outline -->
+<g id="xor0">
+<path class="gate" d="M245 158 Q282 200 245 242 Q302 245 345 200 Q302 155 245 158 Z"/>
+<path class="wire" d="M233 158 Q270 200 233 242"/>
+</g>
+<g id="xor1">
+<path class="gate" d="M245 378 Q282 420 245 462 Q302 465 345 420 Q302 375 245 378 Z"/>
+<path class="wire" d="M233 378 Q270 420 233 462"/>
+</g>
+<!-- source and safe wires -->
+<path class="wire" d="M135 182 H248 M170 218 H248 M135 402 H248 M170 438 H248"/>
+<text x="45" y="190">din[0]</text><text x="105" y="226">safe</text>
+<text x="45" y="410">din[1]</text><text x="105" y="446">safe</text>
+<text x="267" y="143" class="small">XOR</text><text x="267" y="363" class="small">XOR</text>
+<!-- AND gates -->
+<path class="gate" d="M480 178 H520 A42 42 0 0 1 520 262 H480 Z"/>
+<path class="gate" d="M480 358 H520 A42 42 0 0 1 520 442 H480 Z"/>
+<path class="wire" d="M345 200 H480 M345 420 H480 M410 240 H480 M410 380 H480"/>
+<text x="325" y="248">sel[0]</text><text x="325" y="388">sel[1]</text>
+<text x="493" y="165" class="small">AND</text><text x="493" y="345" class="small">AND</text>
+<!-- OR merge -->
+<path class="wire" d="M562 220 H650 V287 H726 M562 400 H650 V333 H726"/>
+<path class="gate" d="M710 260 Q755 310 710 360 Q782 360 835 310 Q782 260 710 260 Z"/>
+<text x="752" y="245" class="small">OR</text>
+<!-- output restoration XOR -->
+<path class="wire" d="M835 310 H887 M840 390 H865 V346 H887"/>
+<text x="775" y="399">safe</text>
+<path class="gate" d="M883 280 Q920 322 883 364 Q940 367 983 322 Q940 277 883 280 Z"/>
+<path class="wire" d="M871 280 Q908 322 871 364"/>
+<text x="908" y="266" class="small">XOR</text>
+<path class="wire" d="M983 322 H1090"/>
+<text x="1100" y="330">dout</text>
+<!-- Functional stages, not circuit boxes -->
+<text x="221" y="530" class="small">Normalize</text>
+<text x="451" y="530" class="small">Select</text>
+<text x="720" y="530" class="small">Merge</text>
+<text x="866" y="530" class="small">Restore</text>
+<text x="50" y="584" class="small">WIDTH-bit buses repeat this circuit in parallel; sel[0] and sel[1] are shared.</text>
+</svg>

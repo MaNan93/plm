@@ -13,6 +13,7 @@
 | 四套可编辑示例、CLI 参数与旧目录迁移 | [示例指南](../examples/README.md) |
 | Python 核心与 Qt 分层 | [工具架构](tool_architecture.md) |
 | RTL 原理、时钟与通道约束 | [设计要点](design_notes.md) |
+| data_mux 真值表与实际 PHY→MAC 回传电路 | [data_mux 与 demux](data_mux.md) |
 | 模块名、文件名、宏名前缀 | [命名前缀](generation_prefixes.md) |
 | 面板几何与像素验收要求 | [面板契约](qt_panel_contracts.md) |
 | 最新深浅主题、弹窗及窄窗口截图 | [截图图库](screenshot/index.html) |

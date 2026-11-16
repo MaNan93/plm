@@ -571,10 +571,10 @@ acc  = OR_i( (din[i] XOR safe) AND sel[i] )
 dout = acc XOR safe
 ```
 
-![pipe_lane_data_mux 极性归一化电路：每路 din 先跟 safe 异或、跟 sel 相与，OR 到 acc，acc 再跟 safe 异或出 dout](images/pipe_lane_data_mux_circuit.png)
+![pipe_lane_data_mux 极性归一化电路：每路 din 先跟 safe 异或、跟 sel 相与，OR 到 acc，acc 再跟 safe 异或出 dout](images/pipe_lane_data_mux.png)
 
-**图 5**：以 N=2、WIDTH=1 为例画出的电路结构（蓝色 XOR，橙色 AND，绿色
-OR）。全程只有两层异或——入口每路一次、出口一次，`sel` 全 0 时不需要
+**图 5**：以 N=2、WIDTH=1 为例画出的门级电路结构。全程只有两层异或——
+入口每路一次、出口一次，`sel` 全 0 时不需要
 另外分叉一条支路，因为 `acc` 在没有任何一路被 AND 选中时天生就是 0：
 
 - 选中某一路时（`sel[i]=1`）：`din[i]` 先跟 `safe` 异或一次进
@@ -585,6 +585,8 @@ OR）。全程只有两层异或——入口每路一次、出口一次，`sel` 
 
 两种情况走的是同一条最终异或电路，没有另外分叉出一条专门给 `sel=0`
 用的支路，所以不存在两条支路抢时序的问题。
+
+完整的 two-input 单比特真值表见 [data_mux 真值表与回传电路](data_mux.md)。
 
 ![pipe_lane_data_mux 的 NOV 切换时序：sel 全 0 期间 dout 无毛刺地落在 safe 上](images/pipe_lane_data_mux_timing.png)
 
@@ -597,28 +599,18 @@ OR）。全程只有两层异或——入口每路一次、出口一次，`sel` 
 `pipe_lane_data_mux`，`.din` 的每一路对应这个 group 里的一个候选
 controller（branch）：如果那个 branch 正好就是这条 lane 自己的
 controller，`din` 接真实的 `phy_phy2mac[l]`；如果是别的 controller，
-`din` 直接填 `{c.lname}_p2m_tie`（安全值常量）。
+`din` 直接填 `{c.lname}_p2m_tie`，而 `.safe` 始终接 `SAFE_P2M`。
+`p2m_tie` 由 `tie_off` 生成，可以跟随 base lane 的实时值；`SAFE_P2M`
+由 `safe_state` 生成。两者不要求相等，不能把 tie 支路的 XOR 直接约掉。
 
-例如 `dpr` 里 `ctrla_phy2mac[9]`（G3 是 CtrlA/B/C/D 四路 BBM，
-CtrlA 是 branch0）：
+![两个生成的 data_mux 实例逐门展开的 PHY→MAC 回传电路](images/pipe_lane_data_demux.png)
 
-```verilog
-pipe_lane_data_mux #(.WIDTH(PHY2MAC_W), .N(4)) u_p2m_ctrla_9 (
-    .sel (sel_tgt.g3),
-    .din ({ctrla_p2m_tie, ctrla_p2m_tie, ctrla_p2m_tie, phy_phy2mac[9]}),
-    .safe(ctrla_p2m_tie),
-    .dout(ctrla_phy2mac[9])
-);
-```
-
-![pipe_lane_data_mux 用在 p2m/demux 方向：branch0 是真实数据，branch1 的 din 直接填 safe 常量](images/pipe_lane_data_mux_demux_circuit.png)
-
-**图 7**：灰色那条支路（branch1，代表 CtrlB 当选）的 `din[1]` 本来就
-等于 `safe`，所以它的 XOR 天生算出 0。`sel_tgt.g3` 选中 CtrlA 自己
-（branch0）时，两次异或抵消，`ctrla_phy2mac[9]` 拿到真实的 lane9
-数据；选中 CtrlB/C/D 中任何一个，或者 `sel` 全 0，都汇合到同一条
-出口异或，落在 `ctrla_p2m_tie`——"别人当选时我该读到安全值"这件事，
-不需要额外逻辑，直接靠同一套极性归一化电路免费得到。
+**图 7**：用两候选配置展示生成器的实际结构：PHY lane1 在 CtrlA lane1 与
+CtrlB lane0 之间分配，每个 controller 输出各有一个独立的 `pipe_lane_data_mux`。
+每个实例保留三个 XOR、两个 AND 和一个 OR；没有共享输入 XOR，也没有合并 tie 分支。
+自己被选中时输出真实 PHY 数据，其他 owner 被选中时输出自己的 `p2m_tie`，
+选择全 0 时输出 `SAFE_P2M`。图对应生成 RTL 的运算结构，不是综合优化后的网表。
+具体配置、实际生成实例和端口对应表见 [data_mux 真值表与回传电路](data_mux.md)。
 
 `tie_off="lane0"` 使用的 `base_lane` 是编译期常量（取
 `ctrl_pclk_cands()` 排序后最小候选）；在 1.3 节约束 B 的前提下，每个
