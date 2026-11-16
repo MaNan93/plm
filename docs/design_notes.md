@@ -124,7 +124,7 @@ PIPE 规范允许两种截然不同的 PCLK 归属方式，两者互斥，一次
 | PCLK 由谁产生 | PHY 产生，送往 controller | controller 由外部参考时钟分频产生，送往 PHY |
 | 正向 PCLK 路径 | `phy_pclk_out[l]` → Mapper → `ctrl_pclk[c]` | `{c}_pclk[port]` → Mapper → `phy_pclk[l]` |
 | PHY 返回时钟 | 不单独使用 `rx_clk` | `rx_clk[l]` → Mapper → `{c}_rx_clk[port]` |
-| controller 的工作时钟从哪来 | `pipe_lane_clk_mux` 从当前 owner 所在 lane 的 `phy_pclk_out` 里选一路，即 `ctrl_pclk` | controller 自己用参考时钟分频得到，按自己的 lane 输出成 `{c}_pclk[]`，本设计不参与产生 |
+| controller 的工作时钟从哪来 | `pipe_lane_clk_router` 从当前 owner 所在 lane 的 `phy_pclk_out` 里选一路，即 `ctrl_pclk` | controller 自己用参考时钟分频得到，按自己的 lane 输出成 `{c}_pclk[]`，本设计不参与产生 |
 | 有没有 `ctrl_pclk` 信号 | 有（顶层输出） | 没有（详见 3.5.2 节） |
 | 数据路径的同步粒度 | 按 group（`sel_tgt`，group 级信号） | 按物理 lane（`seltgt_gN_lL`，详见 3.5.2 节） |
 | DPR 时钟 | Mapper 从当前 mask 中最低编号 lane 的 `phy_pclk_out` 派生 `dpr_pclk` | 系统外部提供持续运行的 `dpr_pclk`；Mapper 输出逐 lane `dpr_rx_clk[]` |
@@ -163,10 +163,9 @@ DPR 时，testbench 按"拉低相关 controller 复位 → 切 `mode` → 释放
 参数上，值从顶层一路传下去。顶层和 connection 包装层把它（连同
 `NL`/`NC`）声明成 `localparam`，例化时不能覆盖；是否开 DPR 决定它的值。
 
-`rx_clk`、controller pclk 候选切换这些无毛刺时钟切换用的
-`pipe_lane_sel_sync`（3.5.2 节 `u_rxclk_sel_sync_*`、3.5.1 节
-`u_pclk_sel_sync_*`）**不**接这个参数，永远硬编码 `SYNC=1'b1`——它们
-门控的是时钟本身，这条安全性质不应该由使用者关掉（呼应 4.1 节）。
+不开 DPR 时，PCLK、反馈时钟和 RXCLK 均为组合逻辑选择；RX 归属直接来自
+`dec_tgt`，不实例化 RX 选择同步器或时钟门控。只有开 DPR 时，RX 时钟域的
+`u_rxclk_sel_sync_*` 和派生 DPR 工作时钟的选择同步器才固定使用 `SYNC=1'b1`。
 
 这两种模式对 `safe_state`/`tie_off` 是否真正生效有直接影响，详见 4.4
 节。
@@ -202,7 +201,7 @@ pipe_lane_mapper_connection (可选的 flat 包装层，见下)
  └─ pipe_lane_mapper
      ├─ u_mode_dec   (pipe_lane_mode_dec)  mode 译码，纯组合输出 dec_tgt
      ├─ u_sel_gen    (pipe_lane_sel_gen)   各 group/lane 的 pipe_lane_sel_sync，输出同步后的选择信号
-     ├─ u_clk_mux    (pipe_lane_clk_mux)   两套时钟架构各自的 PCLK 生成/路由 + 无毛刺切换
+     ├─ u_clk_mux    (pipe_lane_clk_router)   两套时钟架构各自的 PCLK 生成/路由 + 无毛刺切换
      ├─ u_rst_mux    (pipe_lane_rst_mux)   复位 mux，接 dec_tgt（未同步，随 mode 立即变化）
      ├─ data_m2p / data_p2m                按同步后的选择信号做数据汇聚/分发
      └─ pipe_lane_signal_pkg              公共参数/类型定义
@@ -284,7 +283,7 @@ controller 的 `mac2phy`/`phy2mac` struct 数组按 `pipe_signals.csv` 逐行拆
 | `seltgt_g{gid}_l{l}` | out | phy_as_phy_input，每条非 direct（或 dpr 时全部）group 的每条 lane | 同步进该 lane 当前候选自己那条 controller lane 的时钟域的选择位 |
 | `rxclk_en_g{gid}_l{l}` | out | phy_as_phy_input，每条非 direct（或 dpr 时全部）group 的每条 lane | 同步进 `rx_clk[l]` 域的选择位；同时控制 RX 时钟和 PHY→MAC 数据归属 |
 
-**`pipe_lane_clk_mux`**——parameter `NL`、`NC`；两种模式端口完全不同
+**`pipe_lane_clk_router`**——parameter `NL`、`NC`；两种模式端口完全不同
 
 phy_as_phy_output：`phy_pclk_out[NL]`、`ctrl_rst_n[NC]`、每个多
 候选 controller 的 `pclk_tgt_c{cid}`、`sel_tgt`、（dpr：`v_lane_mask[NL]`、
@@ -375,10 +374,19 @@ owner"的窗口。
 
 ### 3.5 clk_mux 实现
 
-`pipe_lane_clk_mux` 是两套时钟架构方案（2.1 节）差异最大的模块，
+`pipe_lane_clk_router` 是两套时钟架构方案（2.1 节）差异最大的模块，
 下面分别说明。
 
 #### 3.5.1 `pclk_as_phy_output` 模式：`ctrl_pclk` 生成 + 反馈时钟 mux
+
+两种架构统一遵循：**不开 DPR 时采用组合时钟选择，只能在受影响 lane 的
+新旧 owner 同时处于复位期间切换 mode；开 DPR 时采用无毛刺时钟切换。**
+多候选组合选择用三目表达式展开，无有效选择时输出 0；单候选直接连接。
+组合时钟选择统一通过 `common/pipe_lane_clk_mux.sv` 的两路 mux 实例级联，
+三目表达式只保留在该 wrapper 的默认实现中；RXCLK 的未选分支接 0。
+替换 wrapper 实现即可接入 standard cell，也可通过 `PIPE_USE_CLKMUX_CELL` /
+`PIPE_CLKMUX_CELL` 宏选择库单元并适配其端口。无需修改生成器或各路实例。
+以下关于同步器、时钟门控与时钟 OR 单元的说明及图示适用于开启 DPR 的路径。
 
 `ctrl_pclk_src()` / `ctrl_pclk_cands()`：每个 controller 的工作时钟
 （`ctrl_pclk`，不是参考时钟）固定使用它在当前 mode 下"组内编号最低的
@@ -388,17 +396,14 @@ owner"的窗口。
 
 **图 3**：蓝色——每条 PHY lane 各自产生自己的 PCLK（`phy_pclk_out[l]`），
 时钟由 PHY 产生、驱动出来，不是 MAC 提供参考时钟给 PHY。橙色——
-`pipe_lane_clk_mux` 从当前 owner 所在 lane 的 `phy_pclk_out` 里选
+`pipe_lane_clk_router` 从当前 owner 所在 lane 的 `phy_pclk_out` 里选
 一路，作为这个 controller 的 `ctrl_pclk`。绿色——controller 拿到
 `ctrl_pclk` 作为自己的工作时钟。虚线——选中的这路时钟又被送回去驱动
 这组 lane 的 `phy_pclk_in`，形成一个 phy→mac→phy 的环。
 
-如果某 controller 在不同 mode 下"最低编号 owned lane"发生了变化（1.3
-节约束 B 已经禁止这种配置通过 `validate()`），驱动它的工作时钟源就会
-变，需要 `pipe_lane_sel_sync` + `pipe_lane_clk_gate` 做无毛刺切换
-（先安全关断旧时钟，等新时钟稳定再打开新时钟）——`ctrl_pclk_cands()`
-长度 > 1 的代码路径因此在现有配置里从未被真实触发过，只是防御性地
-保留着。
+每个 controller 在不同 mode 下的最低编号 owned lane 必须固定（1.3 节
+约束 B）；不满足的配置由 `validate()` 拒绝。controller 工作时钟始终直连，
+生成器没有多候选 controller 工作时钟切换分支。DPR 的派生工作时钟仍需无毛刺选择。
 
 #### 3.5.2 `pclk_as_phy_input` 模式：`phy_pclk` / `rx_clk` 无毛刺切换
 
@@ -410,17 +415,17 @@ owner"的窗口。
 的信号，分频这一步发生在 `pipe_lane_mapper` 范围之外）。绿色——
 controller 自己做分频，
 分频结果按自己每条 lane 一位的形式输出成 `{c}_pclk[]`，格式和
-`{c}_mac2phy` 完全一样。橙色——`pipe_lane_clk_mux` 负责两个方向的
+`{c}_mac2phy` 完全一样。橙色——`pipe_lane_clk_router` 负责两个方向的
 转换：`{c}_pclk[]` 经过无毛刺切换变成 `phy_pclk[l]` 送给 PHY；PHY 的
 `rx_clk[l]` 经过另一套独立的无毛刺切换变成 `{c}_rx_clk[]` 送回
 controller。蓝色——PHY。
 
 这套架构里**没有** `ctrl_pclk` 信号（既不是顶层端口，也不是内部
 wire）：`pclk_as_phy_output` 模式下 `ctrl_pclk` 是真实存在的一路信号，因为
-controller 自己造不出这路时钟，需要 `pipe_lane_clk_mux` 从
+controller 自己造不出这路时钟，需要 `pipe_lane_clk_router` 从
 `phy_pclk_out` 候选里选出来再喂给它；这套架构里恰好相反——controller
 自己已经用参考时钟分频出了工作时钟，并按自己的 lane 送出来
-（`{c}_pclk[]`），`pipe_lane_clk_mux`/`pipe_lane_mapper` 不需要
+（`{c}_pclk[]`），`pipe_lane_clk_router`/`pipe_lane_mapper` 不需要
 再算出一路 `ctrl_pclk` 还给 controller，那只是把某一位换个名字
 重新送回去、没有实际作用。`{c}_pclk[]` 才是唯一真实存在的时钟来源，
 而且是**按 controller 自己的 lane**的，不是按 controller 一根——这一点是这套架构里最
@@ -470,7 +475,7 @@ group 级的 `sel_tgt`（`lane_sel_t`）在这套架构里因此不存在，
 lane 上那条 ctrl lane）同步出来的，直接复用即可：
 
 ```systemverilog
-// pipe_lane_clk_mux 内部，直接消费 sel_gen 传来的 seltgt_gN_lL，不再自己建同步树：
+// pipe_lane_clk_router 内部，直接消费 sel_gen 传来的 seltgt_gN_lL，不再自己建同步树：
 pipe_lane_clk_gate u_pclk_gate_gN_lL_bI (
     .clk_in ({c}_pclk[port]), .en (seltgt_gN_lL[i]), .clk_out (...)
 );
@@ -645,6 +650,9 @@ m2p 输入端口会被空读。
 
 ### 4.1 CDC 基本原则：`en` 必须已经同步进 `clk_in` 自己的域
 
+本节适用于启用 DPR 后的无毛刺时钟路径。非 DPR 路径使用组合选择，
+靠复位期间切换 mode 的系统约束保证安全。
+
 `pipe_lane_clk_gate`（`tool/common/pipe_lane_clk_gate.sv`）是一个
 锁存器实现的门控单元，要求 `en` 在喂给它之前，必须已经同步进它要
 门控的那个 `clk_in` **自己的**时钟域——用某个"看起来相关但其实是别的
@@ -731,7 +739,7 @@ port_of_cand[c] = cfg.mapping[m][l][1]
 ```
 
 取的是 **c 拥有这个 group 的第一个 mode**，然后这一个 ctrl lane 下标就固定用于所有
-mode —— `pipe_lane_sel_gen` 的 `branch_clk`、`pipe_lane_clk_mux` 的
+mode —— `pipe_lane_sel_gen` 的 `branch_clk`、`pipe_lane_clk_router` 的
 `phy_pclk`/`rx_clk` 门控、`pipe_lane_data_m2p` 的 `din` 都是这样来的，
 `pipe_lane_data_p2m` 的 `hit[0]` 是同一件事的另一种写法。下游没有任何一处
 再按 mode 重新推导。

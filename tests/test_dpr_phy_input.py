@@ -12,6 +12,7 @@ from plm.core import exporter
 from plm.core.gen_flags import GenerationOptions
 from plm.core.generator import rtl, tb
 from plm.core.model import Config
+from plm.core.naming import GenerationNames
 from plm.core.plan import GenerationPlan
 
 from sample_data import sample_config
@@ -42,6 +43,27 @@ class DprClockTests(unittest.TestCase):
             for lane in g.lanes:
                 self.assertIn(f".clk_out(dpr_rx_clk[{lane}])", clocks)
                 self.assertIn(f".en(rxclk_en_g{g.gid}_l{lane}[{g.n}])", clocks)
+
+    def test_non_dpr_clocks_are_combinational_in_both_architectures(self):
+        for mode in ("pclk_as_phy_input", "pclk_as_phy_output"):
+            with self.subTest(mode=mode):
+                clocks = rtl.gen_clk_mux(self.cfg, mode, False)
+                self.assertNotIn("pipe_lane_clk_gate", clocks)
+                self.assertNotIn("pipe_lane_clk_or", clocks)
+                self.assertNotIn("always_", clocks)
+                self.assertIn("pipe_lane_clk_mux u_", clocks)
+                self.assertIn("soc_pipe_lane_clk_mux u_",
+                              GenerationNames(module_prefix="soc").sv_source(clocks))
+                selects = rtl.gen_sel_gen(self.cfg, "comb", mode, False)
+                self.assertNotIn(".SYNC(1'b1)", selects)
+                if mode == "pclk_as_phy_input":
+                    for g in self.cfg.groups:
+                        if not g.is_direct:
+                            for lane in g.lanes:
+                                self.assertIn(
+                                    f"assign rxclk_en_g{g.gid}_l{lane} = dec_tgt.g{g.gid};",
+                                    selects,
+                                )
 
     def test_rx_data_and_clock_share_rx_domain_ownership(self):
         source = rtl.gen_top(self.cfg, "pclk_as_phy_input", dpr=True)

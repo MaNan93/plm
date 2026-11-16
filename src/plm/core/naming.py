@@ -7,14 +7,14 @@ import re
 
 _DESIGN_NAMES = frozenset({
     "pipe_lane_signal_pkg", "pipe_lane_mode_dec", "pipe_lane_sel_gen",
-    "pipe_lane_clk_mux", "pipe_lane_rst_mux", "pipe_lane_data_m2p",
+    "pipe_lane_clk_router", "pipe_lane_rst_mux", "pipe_lane_data_m2p",
     "pipe_lane_data_p2m", "pipe_lane_mapper", "pipe_lane_mapper_connection",
     "pipe_lane_sync2", "pipe_lane_sel_sync", "pipe_lane_clk_gate",
-    "pipe_lane_clk_or", "pipe_lane_data_mux", "tb_pipe_lane_mapper",
+    "pipe_lane_clk_or", "pipe_lane_clk_mux", "pipe_lane_data_mux", "tb_pipe_lane_mapper",
 })
 _MACROS = frozenset({
     "PIPE_USE_ICG_CELL", "PIPE_ICG_CELL", "PIPE_USE_CLKOR_CELL",
-    "PIPE_CLKOR_CELL", "DUMP_FSDB",
+    "PIPE_CLKOR_CELL", "PIPE_USE_CLKMUX_CELL", "PIPE_CLKMUX_CELL", "DUMP_FSDB",
 })
 # Keep comments and quoted strings intact; retain source spans for replacements.
 _TOKENS = re.compile(

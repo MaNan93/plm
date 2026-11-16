@@ -41,13 +41,13 @@ class GenerationPrefixTests(unittest.TestCase):
         result = self.generate(module_prefix="soc", file_prefix="rtl", macro_prefix="SOC")
         self.assertTrue(result.generated)
         sources = list((self.root / "rtl").rglob("*.sv"))
-        self.assertEqual(len(sources), 14)
+        self.assertEqual(len(sources), 15)
         self.assertTrue(all(path.name.startswith("rtl_") for path in sources))
         texts = {path.name: path.read_text() for path in sources}
         declared = set()
         for source in texts.values():
             declared.update(re.findall(r"\b(?:module|package)\s+(\w+)", source))
-        self.assertEqual(len(declared), 14)
+        self.assertEqual(len(declared), 15)
         self.assertTrue(all(name.startswith("soc_") for name in declared))
         for source in texts.values():
             # Independent of the renaming helper: check actual instance types/imports.
@@ -69,6 +69,8 @@ class GenerationPrefixTests(unittest.TestCase):
         self.assertIn("`SOC_PIPE_ICG_CELL u_icg", texts["rtl_pipe_lane_clk_gate.sv"])
         self.assertIn("`ifdef SOC_PIPE_USE_CLKOR_CELL", texts["rtl_pipe_lane_clk_or.sv"])
         self.assertIn("`SOC_PIPE_CLKOR_CELL u_clkor", texts["rtl_pipe_lane_clk_or.sv"])
+        self.assertIn("`ifdef SOC_PIPE_USE_CLKMUX_CELL", texts["rtl_pipe_lane_clk_mux.sv"])
+        self.assertIn("`SOC_PIPE_CLKMUX_CELL u_clkmux", texts["rtl_pipe_lane_clk_mux.sv"])
         makefile = (self.root / "tb/makefile").read_text()
         self.assertIn("TB_FILES  = ../tb/rtl_tb_pipe_lane_mapper.sv", makefile)
         self.assertIn("+define+SOC_DUMP_FSDB", makefile)

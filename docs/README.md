@@ -46,7 +46,7 @@ uv run python run.py -gui
 uv run python -m unittest discover -s tests -v
 uv run python scripts/check_ui_scaling.py --output build/ui-scaling.json
 uv build
-uv run python scripts/check_wheel.py dist/plm-3.0.5-py3-none-any.whl --sdist dist/plm-3.0.5.tar.gz
+uv run python scripts/check_wheel.py dist/plm-3.0.6-py3-none-any.whl --sdist dist/plm-3.0.6.tar.gz
 ```
 
 完整回归默认跳过两项可选 RTL 仿真；需要真实 Verilator 仿真时，先准备工具，

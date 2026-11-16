@@ -67,6 +67,12 @@ class GenerationRegressionTests(unittest.TestCase):
                 plan = GenerationPlan.build(config, fixture_options(name))
                 with contextlib.redirect_stdout(io.StringIO()):
                     exporter.export_all(plan, workspace / "rtl")
+                flist = (workspace / "rtl/flist.f").read_text(encoding="utf-8").splitlines()
+                self.assertIn("common/pipe_lane_clk_mux.sv", flist)
+                self.assertIn("src/pipe_lane_clk_router.sv", flist)
+                self.assertNotIn("common/pipe_lane_clk_mux2.sv", flist)
+                self.assertNotIn("src/pipe_lane_clk_mux.sv", flist)
+                self.assertFalse((workspace / "rtl/src/pipe_lane_clk_mux.sv").exists())
                 expected = json.loads((SAMPLES_DIR / name / "expected.json").read_text(encoding="utf-8"))
                 self.assertEqual(expected["schema_version"], 1)
                 actual = {

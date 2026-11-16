@@ -125,7 +125,7 @@ def _self_check_output_set(plan, workspace):
             "src/pipe_lane_signal_pkg.sv",
             "src/pipe_lane_mode_dec.sv",
             "src/pipe_lane_sel_gen.sv",
-            "src/pipe_lane_clk_mux.sv",
+            "src/pipe_lane_clk_router.sv",
             "src/pipe_lane_rst_mux.sv",
             "src/pipe_lane_data_m2p.sv",
             "src/pipe_lane_data_p2m.sv",
@@ -383,7 +383,7 @@ def _export_rtl_into(plan, out_dir, *, display_out=None, log=None):
         src / "pipe_lane_sel_gen.sv": rtl.gen_sel_gen(
             plan, options.sel_mode, options.pclk_mode, options.dpr
         ),
-        src / "pipe_lane_clk_mux.sv": rtl.gen_clk_mux(
+        src / "pipe_lane_clk_router.sv": rtl.gen_clk_mux(
             plan, options.pclk_mode, options.dpr
         ),
         src / "pipe_lane_rst_mux.sv": rtl.gen_rst_mux(plan, options.dpr, options.pclk_mode),

@@ -132,9 +132,9 @@ from plm.core.workspace import scaffold_default_content
 from plm.core.verible import find_verible
 
 assert Path(plm.__file__).resolve().is_relative_to(Path(sys.argv[1]).resolve())
-assert plm.__version__ == '3.0.5'
+assert plm.__version__ == '3.0.6'
 assert find_spec('PyQt5') is None, 'The base CLI check must run without Qt'
-assert len(list(COMMON_DIR.glob('*.sv'))) == 5
+assert len(list(COMMON_DIR.glob('*.sv'))) == 6
 assert TB_MAKEFILE.is_file()
 assert find_verible() is None, 'The wheel smoke must not inherit a host Formatter'
 def run_cli(command):
@@ -147,7 +147,7 @@ with tempfile.TemporaryDirectory(prefix='plm CLI wheel ') as temporary:
     scaffold_default_content(root)
     version = subprocess.run([sys.argv[2], '--version'], stdout=subprocess.PIPE,
                              stderr=subprocess.STDOUT, text=True, check=True)
-    assert version.stdout.strip() == 'plm 3.0.5'
+    assert version.stdout.strip() == 'plm 3.0.6'
     run_cli([sys.argv[2], 'validate', '--config', str(root)])
     for arch, pclk in (('original_pipe', 'pclk_as_phy_output'), ('serdes', 'pclk_as_phy_input')):
         for dpr in (False, True):
@@ -280,8 +280,8 @@ with tempfile.TemporaryDirectory(prefix='plm wheel smoke ') as temporary:
     assert 'PLM Qt' in window.view_stack.currentWidget().doc_browser.toPlainText()
     print('Qt smoke: settings and documents ready.', flush=True)
     entry = {entry.name: entry for entry in distribution('plm').entry_points}['plm-gui']
-    with patch('plm.frontend.qt.main.QtWidgets.QApplication', return_value=app), \
-         patch('plm.frontend.qt.main.MainWindow', return_value=window), \
+    with patch.object(QtWidgets, 'QApplication', return_value=app), \
+         patch('plm.frontend.qt.main_window.MainWindow', return_value=window), \
          patch.object(app, 'exec_', return_value=0):
         assert entry.load()([]) == 0
     print('Qt smoke: GUI entry point passed.', flush=True)

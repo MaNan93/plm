@@ -92,7 +92,7 @@ CLI 的生成参数（`--arch` / `--pclk-mode` / `--dpr` / `--bus-type`）需要
 | 产物 | 内容 |
 |---|---|
 | `rtl/src/*.sv` | 9 个按配置生成的模块 |
-| `rtl/common/*.sv` | 5 个手写的通用模块（两级同步器、NOV 选择、时钟门控、时钟或、data mux），原样拷贝过来，每套配置自包含 |
+| `rtl/common/*.sv` | 6 个手写的通用模块（两级同步器、NOV 选择、时钟门控、时钟或、组合时钟 mux、data mux），拷贝到输出，每套配置自包含 |
 | `rtl/flist.f` | 编译顺序（package 在前） |
 | `tb/tb_pipe_lane_mapper.sv` | 自检 testbench，覆盖时钟、复位、m2p、p2m、tie_off、safe_state 六类检查 |
 | `tb/makefile` | VCS/Verdi 跑仿真用 |
@@ -106,7 +106,15 @@ CLI 的生成参数（`--arch` / `--pclk-mode` / `--dpr` / `--bus-type`）需要
   不开 DPR 时选择信号是 `mode` 的组合译码，没有这层保护，靠“只在复位期间切 mode”保证，见 0.6 节。
 - **空窗值正确且无毛刺**（开 DPR 时）。`safe_state` 用极性归一化实现，不是外挂一个"全 0 时选 SAFE"的并联分支
   （那种写法在 sel 落 0 和 `~|sel` 拉高之间有一段全 0 窗口，会产生尖峰）。
-- **时钟切换 glitch-free**。所有时钟选择都走 `pipe_lane_clk_gate` + `pipe_lane_clk_or`。
+- **时钟切换 glitch-free（开 DPR 时）**。时钟选择走 `pipe_lane_clk_gate` + `pipe_lane_clk_or`。
+  不开 DPR 时，PCLK、反馈时钟和 RXCLK 使用组合逻辑选择（有效两路选择等价于
+  `clk_out = s ? clk1 : clk0`），不实例化无毛刺时钟门控，也不等待时钟边沿更新选择。
+  只能在受影响 lane 的新旧 owner 同时处于复位期间切换 `mode`。
+  组合时钟选择统一实例化 `common/pipe_lane_clk_mux.sv`，接口为
+  `clk0`、`clk1`、`s`、`clk_out`，默认实现是 `assign clk_out = s ? clk1 : clk0;`。
+  后续可直接替换该 wrapper 的实现，或定义 `PIPE_USE_CLKMUX_CELL` 和
+  `PIPE_CLKMUX_CELL` 接入 standard cell；按实际库调整 wrapper 内的 `A/B/S/Q` 端口。
+  多路 one-hot 选择由该两路 mux 级联，RXCLK 未选中时选择常量 0。
 - **配置非法直接报错**。拓扑上做不出正确硬件的配置在生成前就被拒绝，
   不会产出一份能编过、跑起来才错的 RTL。
 
@@ -221,6 +229,7 @@ plm/
 │     │      ├─ pipe_lane_sel_sync.sv
 │     │      ├─ pipe_lane_clk_gate.sv
 │     │      ├─ pipe_lane_clk_or.sv
+│     │      ├─ pipe_lane_clk_mux.sv
 │     │      └─ pipe_lane_data_mux.sv
 │     ├─ cli/
 │     │  └─ main.py           统一 CLI：`plm generate`、`plm validate`
