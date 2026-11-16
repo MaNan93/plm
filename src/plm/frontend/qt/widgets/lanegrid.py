@@ -193,8 +193,12 @@ class _LaneCellDelegate(QtWidgets.QStyledItemDelegate):
         return grid.color_by_id.get(controller_id) if controller_id else None
 
     def updateEditorGeometry(self, editor, option, index):
-        if index.column() == 0:
-            align_cell_text_editor(editor, option, 12)
+        if isinstance(editor, QtWidgets.QLineEdit):
+            styled = QtWidgets.QStyleOptionViewItem(option)
+            self.initStyleOption(styled, index)
+            if index.column() > 0:
+                styled.displayAlignment = QtCore.Qt.AlignCenter
+            align_cell_text_editor(editor, styled, 12)
         else:
             super().updateEditorGeometry(editor, option, index)
     @staticmethod

@@ -763,7 +763,8 @@ QToolTip {
 }
 
 /* Delegate editors keep the painted cell's text position. */
-QWidget#ConfigCsvEditor QTableWidget QLineEdit {
+QWidget#ConfigCsvEditor QTableWidget QLineEdit,
+QTableWidget#laneGrid QLineEdit {
     background-color: $bg_surface;
     border: 1px solid $primary;
     border-radius: 0;

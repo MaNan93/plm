@@ -30,12 +30,27 @@ def align_cell_text_editor(editor, option, padding):
         editor.setAlignment(QtCore.Qt.Alignment(option.displayAlignment))
     editor.setProperty("cellTextEditor", True)
     editor.setFixedHeight(option.rect.height())
+    editor.setGeometry(option.rect)
     editor.ensurePolished()
     frame = QtWidgets.QStyleOptionFrame()
-    editor.initStyleOption(frame)
+    # Qt's default delegate creates QLineEdit in C++, so PyQt cannot call its
+    # protected initStyleOption(). Build the frame through public APIs instead.
+    frame.initFrom(editor)
+    frame.rect = editor.contentsRect()
+    frame.lineWidth = (editor.style().pixelMetric(
+        QtWidgets.QStyle.PM_DefaultFrameWidth, frame, editor
+    ) if editor.hasFrame() else 0)
+    frame.state |= QtWidgets.QStyle.State_Sunken
+    if editor.isReadOnly():
+        frame.state |= QtWidgets.QStyle.State_ReadOnly
     contents = editor.style().subElementRect(QtWidgets.QStyle.SE_LineEditContents, frame, editor)
-    inset = contents.left() + editor.textMargins().left() + 2
-    editor.setGeometry(option.rect.adjusted(padding - inset, 0, -padding + inset, 0))
+    # Keep the focus border on the cell boundary. Align text using internal
+    # margins instead of moving or widening the editor outside its cell.
+    margins = editor.textMargins()
+    editor.setTextMargins(
+        max(0, padding - contents.left() - 2), margins.top(),
+        max(0, padding - (editor.rect().right() - contents.right()) - 2), margins.bottom(),
+    )
 
 
 def button_height(widget):
