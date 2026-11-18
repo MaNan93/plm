@@ -1,0 +1,241 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2460" height="2110" viewBox="0 0 2460 2110">
+<rect width="2460" height="2110" fill="#ffffff"/>
+<text x="35" y="45" font-family="Microsoft YaHei" font-size="28" fill="#28465d">Starsky · 完整连线时钟电路</text>
+<text x="35" y="80" font-family="Microsoft YaHei" font-size="18" fill="#28465d">original PIPE · PHY-output PCLK · no DPR · SEL_SYNC=0</text>
+<text x="35" y="110" font-family="Microsoft YaHei" font-size="17" fill="#28465d">● 表示分支连接；交叉处无圆点则不连接。所有信号均连续接线；每页重复绘制同一个 mode 译码器。</text>
+<text x="35" y="160" font-family="Microsoft YaHei" font-size="16" fill="#28465d">mode[1]</text>
+<text x="125" y="160" font-family="Microsoft YaHei" font-size="16" fill="#28465d">mode[0]</text>
+<polyline points="60,175 60,650" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="60,175 60,650" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="150,175 150,650" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="150,175 150,650" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="60,230 165,230 165,230 180,230" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="60,230 165,230 165,230 180,230" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<path d="M180,213 L180,247 L208,230 Z" fill="#f2eafa" stroke="#8055ab" stroke-width="2"/><circle cx="214" cy="230" r="6" fill="white" stroke="#8055ab" stroke-width="2"/>
+<polyline points="220,230 240,230 240,650" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="220,230 240,230 240,650" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<text x="247" y="249" font-family="Microsoft YaHei" font-size="14" fill="#8055ab">~m1</text>
+<polyline points="150,290 165,290 165,290 180,290" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="150,290 165,290 165,290 180,290" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<path d="M180,273 L180,307 L208,290 Z" fill="#f2eafa" stroke="#8055ab" stroke-width="2"/><circle cx="214" cy="290" r="6" fill="white" stroke="#8055ab" stroke-width="2"/>
+<polyline points="220,290 280,290 280,650" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="220,290 280,290 280,650" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<text x="287" y="309" font-family="Microsoft YaHei" font-size="14" fill="#8055ab">~m0</text>
+<path d="M350,348 H380 A32,32 0 0 1 380,412 H350 Z" fill="#f0f5fa" stroke="#28465d" stroke-width="2"/>
+<polyline points="240,369.0 320,369.0 320,369.0 350,369.0" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="240,369.0 320,369.0 320,369.0 350,369.0" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="280,391.0 320,391.0 320,391.0 350,391.0" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="280,391.0 320,391.0 320,391.0 350,391.0" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="412,380 445,380 445,710" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="412,380 445,380 445,710" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<text x="365" y="335" font-family="Microsoft YaHei" font-size="16" fill="#8055ab">D0</text>
+<path d="M350,448 H380 A32,32 0 0 1 380,512 H350 Z" fill="#f0f5fa" stroke="#28465d" stroke-width="2"/>
+<polyline points="240,469.0 320,469.0 320,469.0 350,469.0" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="240,469.0 320,469.0 320,469.0 350,469.0" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="150,491.0 320,491.0 320,491.0 350,491.0" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="150,491.0 320,491.0 320,491.0 350,491.0" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="412,480 468,480 468,735" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="412,480 468,480 468,735" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<text x="365" y="435" font-family="Microsoft YaHei" font-size="16" fill="#8055ab">D1</text>
+<path d="M350,548 H380 A32,32 0 0 1 380,612 H350 Z" fill="#f0f5fa" stroke="#28465d" stroke-width="2"/>
+<polyline points="60,569.0 320,569.0 320,569.0 350,569.0" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="60,569.0 320,569.0 320,569.0 350,569.0" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="280,591.0 320,591.0 320,591.0 350,591.0" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="280,591.0 320,591.0 320,591.0 350,591.0" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="412,580 491,580 491,760" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="412,580 491,580 491,760" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<text x="365" y="535" font-family="Microsoft YaHei" font-size="16" fill="#8055ab">D2</text>
+<path d="M550,668 Q590,668 625,700 Q590,732 550,732 Q572,700 550,668 Z" fill="#f0f5fa" stroke="#28465d" stroke-width="2"/>
+<polyline points="445,380 445,660" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="445,380 445,660" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="445,660 510,660 510,689.0 558,689.0" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="445,660 510,660 510,689.0 558,689.0" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="468,480 468,682" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="468,480 468,682" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="468,682 525,682 525,711.0 558,711.0" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="468,682 525,682 525,711.0 558,711.0" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="625,700 700,700 700,2060" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="625,700 700,700 700,2060" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<text x="600" y="684" font-family="Microsoft YaHei" font-size="16" fill="#8055ab">S10 / S20</text>
+<path d="M550,788 Q590,788 625,820 Q590,852 550,852 Q572,820 550,788 Z" fill="#f0f5fa" stroke="#28465d" stroke-width="2"/>
+<polyline points="468,480 468,760" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="468,480 468,760" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="468,760 510,760 510,809.0 558,809.0" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="468,760 510,760 510,809.0 558,809.0" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="491,580 491,782" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="491,580 491,782" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="491,782 525,782 525,831.0 558,831.0" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="491,782 525,782 525,831.0 558,831.0" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="625,820 760,820 760,2060" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="625,820 760,820 760,2060" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<text x="660" y="804" font-family="Microsoft YaHei" font-size="16" fill="#8055ab">S21</text>
+<polyline points="491,580 491,910 730,910 730,2060" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="491,580 491,910 730,910 730,2060" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<text x="675" y="898" font-family="Microsoft YaHei" font-size="16" fill="#8055ab">S11</text>
+<polyline points="445,380 445,940 790,940 790,2060" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="445,380 445,940 790,940 790,2060" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<text x="735" y="928" font-family="Microsoft YaHei" font-size="16" fill="#8055ab">S30</text>
+<polyline points="468,480 468,970 820,970 820,2060" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="468,480 468,970 820,970 820,2060" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<text x="765" y="958" font-family="Microsoft YaHei" font-size="16" fill="#8055ab">S31</text>
+<polyline points="491,580 491,1000 850,1000 850,2060" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="491,580 491,1000 850,1000 850,2060" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<text x="795" y="988" font-family="Microsoft YaHei" font-size="16" fill="#8055ab">S32</text>
+<text x="35" y="1090" font-family="Microsoft YaHei" font-size="16" fill="#28465d">译码为 00 / 01 / 10；mode=11 时选择全零。</text>
+<text x="920" y="178" font-family="Microsoft YaHei" font-size="17" fill="#087f9c">phy_pclk_out[0]</text>
+<polyline points="920,190 1160,190 1160,2030" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="920,190 1160,190 1160,2030" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="1160,190 2200,190" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1160,190 2200,190" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<text x="2210" y="196" font-family="Microsoft YaHei" font-size="17" fill="#087f9c">pcie0_pclk</text>
+<text x="920" y="238" font-family="Microsoft YaHei" font-size="17" fill="#087f9c">phy_pclk_out[2]</text>
+<polyline points="920,250 1210,250 1210,2030" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="920,250 1210,250 1210,2030" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="1210,250 2200,250" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1210,250 2200,250" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<text x="2210" y="256" font-family="Microsoft YaHei" font-size="17" fill="#087f9c">pcie1_pclk</text>
+<text x="920" y="298" font-family="Microsoft YaHei" font-size="17" fill="#087f9c">phy_pclk_out[4]</text>
+<polyline points="920,310 1260,310 1260,2030" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="920,310 1260,310 1260,2030" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="1260,310 2200,310" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1260,310 2200,310" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<text x="2210" y="316" font-family="Microsoft YaHei" font-size="17" fill="#087f9c">pcie2_pclk</text>
+<text x="920" y="358" font-family="Microsoft YaHei" font-size="17" fill="#087f9c">phy_pclk_out[6]</text>
+<polyline points="920,370 1310,370 1310,2030" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="920,370 1310,370 1310,2030" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="1310,370 2200,370" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1310,370 2200,370" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<text x="2210" y="376" font-family="Microsoft YaHei" font-size="17" fill="#087f9c">pcie3_pclk</text>
+<text x="920" y="460" font-family="Microsoft YaHei" font-size="16" fill="#28465d">phy_pclk_out[1/3/5/7] 不参与工作 / 反馈时钟选源。</text>
+<text x="1500" y="600" font-family="Microsoft YaHei" font-size="20" fill="#28465d">两候选：仅 1 个 MUX；无选择同步器或时钟 AND</text>
+<polyline points="1160,780 2050,780 2050,780 2080,780" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1160,780 2050,780 2050,780 2080,780" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="2080,780 2180,780" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="2080,780 2180,780" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="2180,780 2180,763 2240,763" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="2180,780 2180,763 2240,763" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<text x="2250" y="769" font-family="Microsoft YaHei" font-size="16" fill="#087f9c">phy_pclk_in[0]</text>
+<polyline points="2180,780 2180,797 2240,797" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="2180,780 2180,797 2240,797" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<text x="2250" y="803" font-family="Microsoft YaHei" font-size="16" fill="#087f9c">phy_pclk_in[1]</text>
+<path d="M1650,1068 L1724,1082 L1724,1138 L1650,1152 Z" fill="#e8f5fb" stroke="#087f9c" stroke-width="2"/>
+<text x="1658" y="1095" font-family="Microsoft YaHei" font-size="14" fill="#28465d">1</text>
+<text x="1658" y="1138" font-family="Microsoft YaHei" font-size="14" fill="#28465d">0</text>
+<text x="1645" y="1052" font-family="Microsoft YaHei" font-size="16" fill="#087f9c">G1 MUX</text>
+<polyline points="1160,1040 1550,1040 1550,1088 1650,1088" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1160,1040 1550,1040 1550,1088 1650,1088" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="1210,1170 1580,1170 1580,1132 1650,1132" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1210,1170 1580,1170 1580,1132 1650,1132" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="700,1225 1610,1225 1610,1145 1687,1145" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="700,1225 1610,1225 1610,1145 1687,1145" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="1724,1110 2180,1110" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1724,1110 2180,1110" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="2180,1110 2180,1093 2240,1093" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="2180,1110 2180,1093 2240,1093" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<text x="2250" y="1099" font-family="Microsoft YaHei" font-size="16" fill="#087f9c">phy_pclk_in[2]</text>
+<polyline points="2180,1110 2180,1127 2240,1127" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="2180,1110 2180,1127 2240,1127" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<text x="2250" y="1133" font-family="Microsoft YaHei" font-size="16" fill="#087f9c">phy_pclk_in[3]</text>
+<path d="M1650,1388 L1724,1402 L1724,1458 L1650,1472 Z" fill="#e8f5fb" stroke="#087f9c" stroke-width="2"/>
+<text x="1658" y="1415" font-family="Microsoft YaHei" font-size="14" fill="#28465d">1</text>
+<text x="1658" y="1458" font-family="Microsoft YaHei" font-size="14" fill="#28465d">0</text>
+<text x="1645" y="1372" font-family="Microsoft YaHei" font-size="16" fill="#087f9c">G2 MUX</text>
+<polyline points="1160,1360 1550,1360 1550,1408 1650,1408" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1160,1360 1550,1360 1550,1408 1650,1408" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="1260,1490 1580,1490 1580,1452 1650,1452" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1260,1490 1580,1490 1580,1452 1650,1452" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="700,1545 1610,1545 1610,1465 1687,1465" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="700,1545 1610,1545 1610,1465 1687,1465" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="1724,1430 2180,1430" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1724,1430 2180,1430" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="2180,1430 2180,1413 2240,1413" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="2180,1430 2180,1413 2240,1413" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<text x="2250" y="1419" font-family="Microsoft YaHei" font-size="16" fill="#087f9c">phy_pclk_in[4]</text>
+<polyline points="2180,1430 2180,1447 2240,1447" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="2180,1430 2180,1447 2240,1447" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<text x="2250" y="1453" font-family="Microsoft YaHei" font-size="16" fill="#087f9c">phy_pclk_in[5]</text>
+<text x="1460" y="1670" font-family="Microsoft YaHei" font-size="20" fill="#28465d">三候选：补 tie0，完整两级平衡 MUX 树</text>
+<path d="M1600,1728 L1674,1742 L1674,1798 L1600,1812 Z" fill="#e8f5fb" stroke="#087f9c" stroke-width="2"/>
+<text x="1608" y="1755" font-family="Microsoft YaHei" font-size="14" fill="#28465d">1</text>
+<text x="1608" y="1798" font-family="Microsoft YaHei" font-size="14" fill="#28465d">0</text>
+<text x="1595" y="1712" font-family="Microsoft YaHei" font-size="16" fill="#087f9c">G3 MUX0</text>
+<polyline points="1160,1710 1520,1710 1520,1748 1600,1748" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1160,1710 1520,1710 1520,1748 1600,1748" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="1260,1830 1545,1830 1545,1792 1600,1792" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1260,1830 1545,1830 1545,1792 1600,1792" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="790,1870 1560,1870 1560,1805 1637,1805" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="790,1870 1560,1870 1560,1805 1637,1805" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<path d="M1600,1918 L1674,1932 L1674,1988 L1600,2002 Z" fill="#e8f5fb" stroke="#087f9c" stroke-width="2"/>
+<text x="1608" y="1945" font-family="Microsoft YaHei" font-size="14" fill="#28465d">1</text>
+<text x="1608" y="1988" font-family="Microsoft YaHei" font-size="14" fill="#28465d">0</text>
+<text x="1595" y="1902" font-family="Microsoft YaHei" font-size="16" fill="#087f9c">G3 MUX1</text>
+<polyline points="1310,1910 1510,1910 1510,1938 1600,1938" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1310,1910 1510,1910 1510,1938 1600,1938" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<text x="1460" y="2020" font-family="Microsoft YaHei" font-size="16" fill="#087f9c">tie0</text>
+<polyline points="1500,2010 1550,2010 1550,1982 1600,1982" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1500,2010 1550,2010 1550,1982 1600,1982" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="850,2050 1570,2050 1570,1995 1637,1995" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="850,2050 1570,2050 1570,1995 1637,1995" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<path d="M1990,1813 L2064,1827 L2064,1883 L1990,1897 Z" fill="#e8f5fb" stroke="#087f9c" stroke-width="2"/>
+<text x="1998" y="1840" font-family="Microsoft YaHei" font-size="14" fill="#28465d">1</text>
+<text x="1998" y="1883" font-family="Microsoft YaHei" font-size="14" fill="#28465d">0</text>
+<text x="1985" y="1797" font-family="Microsoft YaHei" font-size="16" fill="#087f9c">G3 MUX2</text>
+<polyline points="1674,1770 1850,1770 1850,1833 1990,1833" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1674,1770 1850,1770 1850,1833 1990,1833" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="1674,1960 1880,1960 1880,1877 1990,1877" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1674,1960 1880,1960 1880,1877 1990,1877" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<path d="M1800,2008 Q1840,2008 1875,2040 Q1840,2072 1800,2072 Q1822,2040 1800,2008 Z" fill="#f0f5fa" stroke="#28465d" stroke-width="2"/>
+<polyline points="790,2010 1740,2010 1740,2029.0 1808,2029.0" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="790,2010 1740,2010 1740,2029.0 1808,2029.0" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="820,2055 1760,2055 1760,2051.0 1808,2051.0" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="820,2055 1760,2055 1760,2051.0 1808,2051.0" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="1875,2040 1940,2040 1940,1915 2027,1915 2027,1890" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="1875,2040 1940,2040 1940,1915 2027,1915 2027,1890" fill="none" stroke="#8055ab" stroke-width="2.2"/>
+<polyline points="2064,1855 2180,1855" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="2064,1855 2180,1855" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<polyline points="2180,1855 2180,1838 2240,1838" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="2180,1855 2180,1838 2240,1838" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<text x="2250" y="1844" font-family="Microsoft YaHei" font-size="16" fill="#087f9c">phy_pclk_in[6]</text>
+<polyline points="2180,1855 2180,1872 2240,1872" fill="none" stroke="white" stroke-width="7"/>
+<polyline points="2180,1855 2180,1872 2240,1872" fill="none" stroke="#087f9c" stroke-width="2.2"/>
+<text x="2250" y="1878" font-family="Microsoft YaHei" font-size="16" fill="#087f9c">phy_pclk_in[7]</text>
+<text x="35" y="2078" font-family="Microsoft YaHei" font-size="17" fill="#28465d">使用前提：合法 mode 在上电前配置并保持静态；不要求全零过渡态。图中为逻辑平衡，物理延迟由实现流程控制。</text>
+<circle cx="60" cy="230" r="4" fill="#8055ab"/>
+<circle cx="150" cy="290" r="4" fill="#8055ab"/>
+<circle cx="240" cy="369.0" r="4" fill="#8055ab"/>
+<circle cx="280" cy="391.0" r="4" fill="#8055ab"/>
+<circle cx="240" cy="469.0" r="4" fill="#8055ab"/>
+<circle cx="150" cy="491.0" r="4" fill="#8055ab"/>
+<circle cx="60" cy="569.0" r="4" fill="#8055ab"/>
+<circle cx="280" cy="591.0" r="4" fill="#8055ab"/>
+<circle cx="445" cy="660" r="4" fill="#8055ab"/>
+<circle cx="468" cy="682" r="4" fill="#8055ab"/>
+<circle cx="468" cy="760" r="4" fill="#8055ab"/>
+<circle cx="491" cy="782" r="4" fill="#8055ab"/>
+<circle cx="491" cy="580" r="4" fill="#8055ab"/>
+<circle cx="445" cy="380" r="4" fill="#8055ab"/>
+<circle cx="468" cy="480" r="4" fill="#8055ab"/>
+<circle cx="491" cy="580" r="4" fill="#8055ab"/>
+<circle cx="1160" cy="190" r="4" fill="#087f9c"/>
+<circle cx="1210" cy="250" r="4" fill="#087f9c"/>
+<circle cx="1260" cy="310" r="4" fill="#087f9c"/>
+<circle cx="1310" cy="370" r="4" fill="#087f9c"/>
+<circle cx="1160" cy="780" r="4" fill="#087f9c"/>
+<circle cx="2180" cy="780" r="4" fill="#087f9c"/>
+<circle cx="1160" cy="1040" r="4" fill="#087f9c"/>
+<circle cx="1210" cy="1170" r="4" fill="#087f9c"/>
+<circle cx="700" cy="1225" r="4" fill="#8055ab"/>
+<circle cx="2180" cy="1110" r="4" fill="#087f9c"/>
+<circle cx="1160" cy="1360" r="4" fill="#087f9c"/>
+<circle cx="1260" cy="1490" r="4" fill="#087f9c"/>
+<circle cx="700" cy="1545" r="4" fill="#8055ab"/>
+<circle cx="2180" cy="1430" r="4" fill="#087f9c"/>
+<circle cx="1160" cy="1710" r="4" fill="#087f9c"/>
+<circle cx="1260" cy="1830" r="4" fill="#087f9c"/>
+<circle cx="790" cy="1870" r="4" fill="#8055ab"/>
+<circle cx="1310" cy="1910" r="4" fill="#087f9c"/>
+<circle cx="850" cy="2050" r="4" fill="#8055ab"/>
+<circle cx="790" cy="2010" r="4" fill="#8055ab"/>
+<circle cx="820" cy="2055" r="4" fill="#8055ab"/>
+<circle cx="2180" cy="1855" r="4" fill="#087f9c"/>
+</svg>

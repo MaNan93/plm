@@ -14,3 +14,4 @@ work/
 ui-screenshots/
 /examples/*/rtl/
 /examples/*/tb/
+/examples/starsky/verification/

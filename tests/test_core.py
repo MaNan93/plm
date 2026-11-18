@@ -395,7 +395,8 @@ class ExporterTests(unittest.TestCase):
         self.assertIn("assign sel_tgt = '0;", rtl.gen_sel_gen(plan))
         self.assertNotIn("assign sel_tgt", rtl.gen_sel_gen(plan, dpr=True))
         muxed = load_generation_plan(sample_config("bifurcate"), GenerationOptions())
-        self.assertNotIn("assign sel_tgt", rtl.gen_sel_gen(muxed))
+        self.assertIn("assign sel_tgt = dec_tgt;", rtl.gen_sel_gen(muxed))
+        self.assertNotIn("u_sel_sync_", rtl.gen_sel_gen(muxed))
 
     def test_mode_switch_contract_is_checked_in_the_testbench_not_the_rtl(self):
         from plm.core.generator import rtl, tb

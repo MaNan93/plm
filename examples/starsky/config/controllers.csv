@@ -1,0 +1,5 @@
+ctrl_id,ctrl_name,max_width
+0,pcie0,8
+1,pcie1,2
+2,pcie2,4
+3,pcie3,2

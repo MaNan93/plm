@@ -399,6 +399,14 @@ def gen_sel_gen(cfg, sel_mode="sync", pclk_mode="pclk_as_phy_output", dpr=False)
                 L.append(f"        .en           (seltgt_g{g.gid}_l{lane_idx})")
                 L.append("    );")
                 L.append("")
+    elif not dpr:
+        L.append("    // Original PIPE without DPR: legal mode is configured before power-up")
+        L.append("    // and remains static; no select synchronizer or handoff state.")
+        if all(g.is_direct for g in cfg.groups):
+            L.append("    assign sel_tgt = '0;   // all groups are direct, nothing to select")
+        else:
+            L.append("    assign sel_tgt = dec_tgt;")
+        L.append("")
     else:
         L.append("    //------------------------------------------------------------")
         if dpr:
@@ -488,11 +496,7 @@ def gen_clk_mux(cfg, pclk_mode="pclk_as_phy_output", dpr=False):
 
 
 def gen_comb_clk_select(L, prefix, cand_clks, select, out_expr):
-    """Emit common 2:1 mux instances for one-hot selects; idle outputs 0.
-
-    Without DPR, mode may change only while affected owners are in reset.
-    Each wrapper can be replaced with a standard cell without changing routing.
-    """
+    """Original common mux chain, retained for PHY-input architecture."""
     n = len(cand_clks)
     L.append(f"    logic [{n}:0] {prefix}_chain;")
     L.append(f"    assign {prefix}_chain[{n}] = 1'b0;")
@@ -503,6 +507,36 @@ def gen_comb_clk_select(L, prefix, cand_clks, select, out_expr):
             f".s({select}[{i}]), .clk_out({prefix}_chain[{i}]));"
         )
     L.append(f"    assign {out_expr} = {prefix}_chain[0];")
+
+
+def gen_balanced_comb_clk_select(L, prefix, cand_clks, select, out_expr):
+    """Emit a pure balanced mux tree for static, legal original-PIPE mode.
+
+    No all-zero handoff or clock-valid gate is required in this architecture.
+    Each wrapper can be replaced with a standard cell without changing routing.
+    """
+    n = len(cand_clks)
+    leaves = 1 << (n - 1).bit_length()
+
+    def emit(lo, hi, depth, index):
+        if hi - lo == 1:
+            return cand_clks[lo] if lo < n else "1'b0"
+        mid = (lo + hi) // 2
+        left = emit(lo, mid, depth + 1, index * 2)
+        right = emit(mid, hi, depth + 1, index * 2 + 1)
+        bits = [f"{select}[{i}]" for i in range(lo, min(mid, n))]
+        choose_left = " | ".join(bits) if bits else "1'b0"
+        net = f"{prefix}_d{depth}_n{index}"
+        L.append(f"    logic {net};")
+        L.append(
+            f"    pipe_lane_clk_mux u_{net} ("
+            f".clk0({right}), .clk1({left}), "
+            f".s({choose_left}), .clk_out({net}));"
+        )
+        return net
+
+    root = emit(0, leaves, 0, 0)
+    L.append(f"    assign {out_expr} = {root};")
 
 
 def gen_glitch_free_clk_select(L, prefix, cand_clks, rst_n_expr, tgt_expr, default_bit, out_expr):
@@ -646,9 +680,9 @@ def gen_clk_mux_phy_output(cfg, dpr=False):
                     f"  // G{g.gid} direct to {cfg.controllers[c].name}"
                 )
         elif not dpr:
-            L.append(f"    // G{g.gid}: combinational clock select; change mode only in reset.")
+            L.append(f"    // G{g.gid}: balanced clock select; legal mode is static before power-up.")
             L.append(f"    logic pclk_in_g{g.gid};")
-            gen_comb_clk_select(
+            gen_balanced_comb_clk_select(
                 L, f"pin_mux_g{g.gid}", [f"ctrl_pclk[{c}]" for c in g.cands],
                 f"sel_tgt.g{g.gid}", f"pclk_in_g{g.gid}",
             )
